@@ -1,0 +1,170 @@
+[
+  {
+    "id": "burger-1",
+    "name": "Бургер Черный",
+    "description": "Сочная говяжья котлета с черной булочкой, салатом, помидором и фирменным соусом",
+    "category": "Бургеры",
+    "price": 2500,
+    "image": "burger-chernyy.jpg"
+  },
+  {
+    "id": "burger-2",
+    "name": "Чизбургер Классический",
+    "description": "Двойная котлета с сыром чеддер, маринованными огурцами и карамелизированным луком",
+    "category": "Бургеры",
+    "price": 2800,
+    "image": "cheeseburger.jpg"
+  },
+  {
+    "id": "pizza-1",
+    "name": "Пицца Пепперони",
+    "description": "Классическая пицца с пепперони, моцареллой и томатным соусом",
+    "category": "Пицца",
+    "price": 3500,
+    "image": "pizza-pepperoni.jpg"
+  },
+  {
+    "id": "pizza-2",
+    "name": "Пицца Маргарита",
+    "description": "Томатный соус, моцарелла, свежие томаты и базилик",
+    "category": "Пицца",
+    "price": 3000,
+    "image": "pizza-margarita.jpg"
+  },
+  {
+    "id": "pizza-3",
+    "name": "Пицца 4 Сыра",
+    "description": "Моцарелла, горгонзола, пармезан и чеддер",
+    "category": "Пицца",
+    "price": 3800,
+    "image": "pizza-4-syra.jpg"
+  },
+  {
+    "id": "khachapuri-1",
+    "name": "Хачапури по-аджарски",
+    "description": "Традиционный грузинский хачапури в форме лодочки с яйцом и сыром",
+    "category": "Хачапури",
+    "price": 2200,
+    "image": "khachapuri.jpg"
+  },
+  {
+    "id": "khachapuri-2",
+    "name": "Хачапури по-имеретински",
+    "description": "Круглый закрытый хачапури с большим количеством сыра",
+    "category": "Хачапури",
+    "price": 2000,
+    "image": "khachapuri-imeretinski.jpg"
+  },
+  {
+    "id": "pasta-1",
+    "name": "Паста Карбонара",
+    "description": "Спагетти с беконом, сливочным соусом, пармезаном и яичным желтком",
+    "category": "Паста",
+    "price": 2400,
+    "image": "pasta-carbonara.jpg"
+  },
+  {
+    "id": "pasta-2",
+    "name": "Паста Болоньезе",
+    "description": "Спагетти с мясным соусом болоньезе и пармезаном",
+    "category": "Паста",
+    "price": 2300,
+    "image": "pasta-bolognese.jpg"
+  },
+  {
+    "id": "salad-1",
+    "name": "Салат Цезарь",
+    "description": "Римский салат, курица гриль, пармезан, гренки и соус Цезарь",
+    "category": "Салаты",
+    "price": 1800,
+    "image": "salad-caesar.jpg"
+  },
+  {
+    "id": "salad-2",
+    "name": "Греческий салат",
+    "description": "Томаты, огурцы, болгарский перец, красный лук, оливки, сыр фета",
+    "category": "Салаты",
+    "price": 1600,
+    "image": "salad-greek.jpg"
+  },
+  {
+    "id": "soup-1",
+    "name": "Борщ украинский",
+    "description": "Традиционный борщ со свеклой, капустой, мясом и сметаной",
+    "category": "Супы",
+    "price": 1400,
+    "image": "borsch.jpg"
+  },
+  {
+    "id": "soup-2",
+    "name": "Солянка мясная",
+    "description": "Насыщенная солянка с копченостями, оливками и лимоном",
+    "category": "Супы",
+    "price": 1500,
+    "image": "solyanka.jpg"
+  },
+  {
+    "id": "drink-1",
+    "name": "Кола 0.5л",
+    "description": "Coca-Cola охлажденная",
+    "category": "Напитки",
+    "price": 500,
+    "image": "cola.jpg"
+  },
+  {
+    "id": "drink-2",
+    "name": "Вода минеральная 0.5л",
+    "description": "Минеральная вода без газа",
+    "category": "Напитки",
+    "price": 300,
+    "image": "water.jpg"
+  },
+  {
+    "id": "drink-3",
+    "name": "Сок апельсиновый 0.3л",
+    "description": "Свежевыжатый апельсиновый сок",
+    "category": "Напитки",
+    "price": 600,
+    "image": "orange-juice.jpg"
+  },
+  {
+    "id": "drink-4",
+    "name": "Кофе Американо",
+    "description": "Классический американо из свежемолотых зерен",
+    "category": "Напитки",
+    "price": 400,
+    "image": "coffee-americano.jpg"
+  },
+  {
+    "id": "drink-5",
+    "name": "Капучино",
+    "description": "Капучино с молочной пенкой",
+    "category": "Напитки",
+    "price": 500,
+    "image": "cappuccino.jpg"
+  },
+  {
+    "id": "dessert-1",
+    "name": "Чизкейк Нью-Йорк",
+    "description": "Классический американский чизкейк с ягодным соусом",
+    "category": "Десерты",
+    "price": 1200,
+    "image": "cheesecake.jpg"
+  },
+  {
+    "id": "dessert-2",
+    "name": "Тирамису",
+    "description": "Итальянский десерт с кофе и маскарпоне",
+    "category": "Десерты",
+    "price": 1300,
+    "image": "tiramisu.jpg"
+  },
+  {
+    "id": "dessert-3",
+    "name": "Мороженое 3 шарика",
+    "description": "Ванильное, шоколадное и клубничное мороженое",
+    "category": "Десерты",
+    "price": 800,
+    "image": "ice-cream.jpg"
+  }
+]
