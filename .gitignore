@@ -4,39 +4,70 @@ __pycache__/
 *$py.class
 *.so
 .Python
+*.pyc
+*.pyo
+*.pyd
 
 # Virtual Environment
 venv/
 env/
 ENV/
+.venv
 
 # Environment variables
 .env
 .env.local
+.env.*.local
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
+orders.db
 
 # Logs
 *.log
+logs/
+*.log.*
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+.DS_Store
+*.code-workspace
 
 # OS
-.DS_Store
 Thumbs.db
+.DS_Store
+*.bak
+
+# Docker
+.dockerignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Temporary files
+*.tmp
+*.temp
+*~
 
 # Backup files
 *.backup
 *.backup_*
 *.original_*
 
-# Test files
-test_*.py
-*_test.py
+# Documentation drafts (keep only final docs)
+START_HERE.md
+README_POLLING.md
