@@ -15,6 +15,7 @@ Telegram бот для отеля "Пеликан Алаколь"
 git clone https://github.com/Andreyhiitola/pelikan-bot.git
 cd pelikan-bot
 
+
 # Настроить .env
 cp .env.example .env
 nano .env  # BOT_TOKEN и ADMIN_IDS
