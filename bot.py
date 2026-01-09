@@ -7,6 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 import aiosqlite
 import os
 from dotenv import load_dotenv
@@ -42,6 +43,36 @@ class OrderStates(StatesGroup):
 
 
 # Инициализация базы данных
+
+# Импорты для клавиатуры (добавить в начало файла после других импортов)
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+
+# Создание главной клавиатуры
+def get_main_keyboard():
+    """Главное меню с кнопками"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(text="🍽️ Меню бара"),
+                KeyboardButton(text="🍴 Столовая")
+            ],
+            [
+                KeyboardButton(text="🏨 Бронирование"),
+                KeyboardButton(text="🚗 Трансфер")
+            ],
+            [
+                KeyboardButton(text="🎯 Экскурсии"),
+                KeyboardButton(text="ℹ️ Информация")
+            ],
+            [
+                KeyboardButton(text="❓ Помощь")
+            ]
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Выберите раздел"
+    )
+    return keyboard
+
 async def init_db():
     """Создание таблицы заказов, если её нет"""
     async with aiosqlite.connect(DB_FILE) as db:
@@ -186,31 +217,21 @@ async def notify_client_status_change(order_id: str, telegram_username: str, new
 # ==================== КОМАНДЫ БОТА ====================
 
 
+<b>Как сделать заказ:</b>
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    """Приветственное сообщение"""
+    """Приветственное сообщение с клавиатурой"""
+    keyboard = get_main_keyboard()
+    
     await message.answer(
         "👋 <b>Добро пожаловать в бот отеля «Пеликан Алаколь»!</b>\n\n"
-        "🍽️ /bar - Меню бара (заказ еды)\n"
-        "🍴 /stolovaya - Меню столовой\n"
-        "🏨 /booking - Бронирование номеров\n"
-        "🚗 /transfer - Заказ трансфера\n"
-        "🎯 /activities - Экскурсии и развлечения\n"
-        "ℹ️ /info - Информация об отеле\n"
-        "❓ /help - Помощь\n\n"
         "📱 <b>Для гостей:</b>\n"
         "• Заказывайте еду через наш сайт\n"
         "• Получайте уведомления о готовности\n"
         "• Следите за статусом заказа\n\n"
-        "<i>Приятного отдыха! 🌊</i>"
+        "<i>Выберите раздел из меню ниже ⬇️</i>",
+        reply_markup=keyboard
     )
-@dp.message(Command("help"))
-async def cmd_help(message: Message):
-    """Помощь по использованию бота"""
-    help_text = """
-<b>📖 Инструкция по использованию бота</b>
-
-<b>Как сделать заказ:</b>
 1️⃣ Перейдите на сайт bar.pelikan-alakol.kz
 2️⃣ Выберите блюда из меню
 3️⃣ Укажите номер комнаты и контакты
@@ -548,6 +569,44 @@ async def cmd_stats(message: Message):
 
 
 # ==================== ОБРАБОТЧИК ТЕКСТОВЫХ ЗАКАЗОВ ====================
+
+
+# ==================== ОБРАБОТЧИКИ КНОПОК ====================
+
+@dp.message(F.text == "🍽️ Меню бара")
+async def button_bar(message: Message):
+    """Обработка кнопки 'Меню бара'"""
+    await cmd_bar(message)
+
+@dp.message(F.text == "🍴 Столовая")
+async def button_stolovaya(message: Message):
+    """Обработка кнопки 'Столовая'"""
+    await cmd_stolovaya(message)
+
+@dp.message(F.text == "🏨 Бронирование")
+async def button_booking(message: Message):
+    """Обработка кнопки 'Бронирование'"""
+    await cmd_booking(message)
+
+@dp.message(F.text == "🚗 Трансфер")
+async def button_transfer(message: Message):
+    """Обработка кнопки 'Трансфер'"""
+    await cmd_transfer(message)
+
+@dp.message(F.text == "🎯 Экскурсии")
+async def button_activities(message: Message):
+    """Обработка кнопки 'Экскурсии'"""
+    await cmd_activities(message)
+
+@dp.message(F.text == "ℹ️ Информация")
+async def button_info(message: Message):
+    """Обработка кнопки 'Информация'"""
+    await cmd_info(message)
+
+@dp.message(F.text == "❓ Помощь")
+async def button_help(message: Message):
+    """Обработка кнопки 'Помощь'"""
+    await cmd_help(message)
 
 @dp.message(F.text.contains("🛎️"))
 async def handle_text_order(message: Message):
