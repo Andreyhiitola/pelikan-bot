@@ -6,8 +6,7 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 import aiosqlite
 import os
 from dotenv import load_dotenv
@@ -43,36 +42,6 @@ class OrderStates(StatesGroup):
 
 
 # Инициализация базы данных
-
-# Импорты для клавиатуры (добавить в начало файла после других импортов)
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-
-# Создание главной клавиатуры
-def get_main_keyboard():
-    """Главное меню с кнопками"""
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(text="🍽️ Меню бара"),
-                KeyboardButton(text="🍴 Столовая")
-            ],
-            [
-                KeyboardButton(text="🏨 Бронирование"),
-                KeyboardButton(text="🚗 Трансфер")
-            ],
-            [
-                KeyboardButton(text="🎯 Экскурсии"),
-                KeyboardButton(text="ℹ️ Информация")
-            ],
-            [
-                KeyboardButton(text="❓ Помощь")
-            ]
-        ],
-        resize_keyboard=True,
-        input_field_placeholder="Выберите раздел"
-    )
-    return keyboard
-
 async def init_db():
     """Создание таблицы заказов, если её нет"""
     async with aiosqlite.connect(DB_FILE) as db:
@@ -217,25 +186,51 @@ async def notify_client_status_change(order_id: str, telegram_username: str, new
 # ==================== КОМАНДЫ БОТА ====================
 
 
-<b>Как сделать заказ:</b>
+
+def get_mini_app_keyboard():
+    """Клавиатура с кнопкой Mini App"""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(
+                    text="🏨 Отель Пеликан",
+                    web_app=WebAppInfo(url="https://pelikan-alakol-site-v2.pages.dev/miniapp.html")
+                )
+            ]
+        ],
+        resize_keyboard=True
+    )
+    return keyboard
+
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    """Приветственное сообщение с клавиатурой"""
-    keyboard = get_main_keyboard()
-    
+    """Приветственное сообщение"""
     await message.answer(
         "👋 <b>Добро пожаловать в бот отеля «Пеликан Алаколь»!</b>\n\n"
+        "🍽️ /bar - Меню бара (заказ еды)\n"
+        "🍴 /stolovaya - Меню столовой\n"
+        "🏨 /booking - Бронирование номеров\n"
+        "🚗 /transfer - Заказ трансфера\n"
+        "🎯 /activities - Экскурсии и развлечения\n"
+        "ℹ️ /info - Информация об отеле\n"
+        "❓ /help - Помощь\n\n"
         "📱 <b>Для гостей:</b>\n"
         "• Заказывайте еду через наш сайт\n"
         "• Получайте уведомления о готовности\n"
         "• Следите за статусом заказа\n\n"
-        "<i>Выберите раздел из меню ниже ⬇️</i>",
-        reply_markup=keyboard
-    )
-1. Перейдите на сайт bar.pelikan-alakol.kz
-2. Выберите блюда из меню
-3. Укажите номер комнаты и контакты
-4. Оформите заказ
+        "<i>Приятного отдыха! 🌊</i>"
+    , reply_markup=get_mini_app_keyboard())
+@dp.message(Command("help"))
+async def cmd_help(message: Message):
+    """Помощь по использованию бота"""
+    help_text = """
+<b>📖 Инструкция по использованию бота</b>
+
+<b>Как сделать заказ:</b>
+1️⃣ Перейдите на сайт bar.pelikan-alakol.kz
+2️⃣ Выберите блюда из меню
+3️⃣ Укажите номер комнаты и контакты
+4️⃣ Оформите заказ
 
 <b>Проверка статуса:</b>
 /status &lt;номер_заказа&gt;
@@ -265,10 +260,10 @@ async def cmd_bar(message: Message):
         "Выберите блюда и сделайте заказ на сайте:\n\n"
         "👉 https://pelikan-alakol-site-v2.pages.dev/\n\n"
         "📋 <b>Как заказать:</b>\n"
-        "1. Откройте сайт\n"
-        "2. Выберите блюда в корзину\n"
-        "3. Нажмите 'Оформить заказ'\n"
-        "4. Вернитесь сюда и отправьте текст заказа\n\n"
+        "1️⃣ Откройте сайт\n"
+        "2️⃣ Выберите блюда в корзину\n"
+        "3️⃣ Нажмите 'Оформить заказ'\n"
+        "4️⃣ Вернитесь сюда и отправьте текст заказа\n\n"
         "⏱️ Время приготовления: 15-25 минут\n"
         "💳 Оплата при получении в баре\n\n"
         "<i>Мы уведомим вас когда заказ будет готов!</i>"
@@ -570,44 +565,6 @@ async def cmd_stats(message: Message):
 
 # ==================== ОБРАБОТЧИК ТЕКСТОВЫХ ЗАКАЗОВ ====================
 
-
-# ==================== ОБРАБОТЧИКИ КНОПОК ====================
-
-@dp.message(F.text == "🍽️ Меню бара")
-async def button_bar(message: Message):
-    """Обработка кнопки 'Меню бара'"""
-    await cmd_bar(message)
-
-@dp.message(F.text == "🍴 Столовая")
-async def button_stolovaya(message: Message):
-    """Обработка кнопки 'Столовая'"""
-    await cmd_stolovaya(message)
-
-@dp.message(F.text == "🏨 Бронирование")
-async def button_booking(message: Message):
-    """Обработка кнопки 'Бронирование'"""
-    await cmd_booking(message)
-
-@dp.message(F.text == "🚗 Трансфер")
-async def button_transfer(message: Message):
-    """Обработка кнопки 'Трансфер'"""
-    await cmd_transfer(message)
-
-@dp.message(F.text == "🎯 Экскурсии")
-async def button_activities(message: Message):
-    """Обработка кнопки 'Экскурсии'"""
-    await cmd_activities(message)
-
-@dp.message(F.text == "ℹ️ Информация")
-async def button_info(message: Message):
-    """Обработка кнопки 'Информация'"""
-    await cmd_info(message)
-
-@dp.message(F.text == "❓ Помощь")
-async def button_help(message: Message):
-    """Обработка кнопки 'Помощь'"""
-    await cmd_help(message)
-
 @dp.message(F.text.contains("🛎️"))
 async def handle_text_order(message: Message):
     """Обработка заказа присланного текстом с сайта"""
@@ -699,6 +656,81 @@ async def handle_text_order(message: Message):
             "Пожалуйста, свяжитесь с администратором:\n"
             "📞 +7 XXX XXX-XX-XX"
         )
+
+
+# ==================== ОБРАБОТЧИК WEBAPP ДАННЫХ ====================
+
+@dp.message(F.web_app_data)
+async def handle_webapp_data(message: Message):
+    """Обработка заказа из Mini App"""
+    try:
+        import json
+        order_data = json.loads(message.web_app_data.data)
+        
+        logger.info(f"Получен заказ из Mini App: {order_data.get('orderId')}")
+        
+        # Сохраняем в БД
+        async with aiosqlite.connect(DB_FILE) as db:
+            await db.execute("""
+                INSERT INTO orders (
+                    order_id, client_name, room, telegram, 
+                    items, total, status, timestamp, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (
+                order_data['orderId'],
+                order_data['name'],
+                order_data['room'],
+                message.from_user.username or 'unknown',
+                json.dumps(order_data['items']),
+                str(order_data['total']),
+                'принят',
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ))
+            await db.commit()
+        
+        # Подтверждение клиенту
+        await message.answer(
+            f"✅ <b>Ваш заказ #{order_data['orderId']} принят!</b>\n\n"
+            f"👤 {order_data['name']}\n"
+            f"🏨 Комната: {order_data['room']}\n"
+            f"💰 {order_data['total']}₸\n\n"
+            f"⏱️ Примерное время: ~20 минут\n\n"
+            f"Проверить статус: /status {order_data['orderId']}"
+        )
+        
+        # Уведомление админам
+        items_text = "\n".join([
+            f"• {item['name']} x{item['quantity']} - {item['price']}₸"
+            for item in order_data['items']
+        ])
+        
+        admin_message = (
+            f"🔔 <b>Новый заказ из Mini App!</b>\n\n"
+            f"📋 Заказ #{order_data['orderId']}\n"
+            f"👤 {order_data['name']}\n"
+            f"🏨 Комната: {order_data['room']}\n\n"
+            f"🍽️ Заказ:\n{items_text}\n\n"
+            f"💰 Итого: {order_data['total']}₸\n"
+            f"📱 Telegram: @{message.from_user.username or 'не указан'}\n\n"
+            f"<b>Команды:</b>\n"
+            f"/update {order_data['orderId']} готовится\n"
+            f"/update {order_data['orderId']} готов\n"
+            f"/update {order_data['orderId']} выдан"
+        )
+        
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, admin_message)
+            except Exception as e:
+                logger.error(f"Не удалось отправить админу {admin_id}: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка обработки WebApp данных: {e}", exc_info=True)
+        await message.answer(
+            "❌ Произошла ошибка при обработке заказа.\n"
+            "Пожалуйста, свяжитесь с администратором."
+        )
+
 
 # ==================== ОБРАБОТЧИК НЕИЗВЕСТНЫХ КОМАНД ====================
 
@@ -818,28 +850,3 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Бот остановлен пользователем")
-
-@dp.message(Command("help"))
-async def cmd_help(message: Message):
-    """Помощь по использованию бота"""
-    help_text = """<b>📖 Инструкция по использованию бота</b>
-
-<b>Как сделать заказ:</b>
-1. Перейдите на сайт
-2. Выберите блюда из меню
-3. Укажите номер комнаты
-4. Оформите заказ
-
-<b>Проверка статуса:</b>
-/status номер_заказа
-
-<b>Статусы заказа:</b>
-- Принят
-- Готовится
-- Готов
-- Выдан
-
-<b>Оплата:</b>
-При получении заказа в баре"""
-    
-    await message.answer(help_text)
