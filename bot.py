@@ -185,19 +185,25 @@ async def notify_client_status_change(order_id: str, telegram_username: str, new
 
 # ==================== КОМАНДЫ БОТА ====================
 
+
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     """Приветственное сообщение"""
     await message.answer(
-        "🍽 <b>Добро пожаловать в систему заказов бара «Пеликан Алаколь»!</b>\n\n"
-        "📋 <b>Доступные команды:</b>\n"
-        "/status &lt;номер_заказа&gt; — проверить статус заказа\n"
-        "/help — помощь\n\n"
-        "Для заказа используйте наш сайт: bar.pelikan-alakol.kz\n\n"
-        "Приятного аппетита! 😊"
+        "👋 <b>Добро пожаловать в бот отеля «Пеликан Алаколь»!</b>\n\n"
+        "🍽️ /bar - Меню бара (заказ еды)\n"
+        "🍴 /stolovaya - Меню столовой\n"
+        "🏨 /booking - Бронирование номеров\n"
+        "🚗 /transfer - Заказ трансфера\n"
+        "🎯 /activities - Экскурсии и развлечения\n"
+        "ℹ️ /info - Информация об отеле\n"
+        "❓ /help - Помощь\n\n"
+        "📱 <b>Для гостей:</b>\n"
+        "• Заказывайте еду через наш сайт\n"
+        "• Получайте уведомления о готовности\n"
+        "• Следите за статусом заказа\n\n"
+        "<i>Приятного отдыха! 🌊</i>"
     )
-
-
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
     """Помощь по использованию бота"""
@@ -228,6 +234,93 @@ async def cmd_help(message: Message):
     """
     await message.answer(help_text)
 
+
+
+@dp.message(Command("bar"))
+async def cmd_bar(message: Message):
+    """Меню бара с ссылкой на сайт"""
+    await message.answer(
+        "🍽️ <b>Меню бара Pelikan Alakol</b>\n\n"
+        "Выберите блюда и сделайте заказ на сайте:\n\n"
+        "👉 https://pelikan-alakol-site-v2.pages.dev/\n\n"
+        "📋 <b>Как заказать:</b>\n"
+        "1️⃣ Откройте сайт\n"
+        "2️⃣ Выберите блюда в корзину\n"
+        "3️⃣ Нажмите 'Оформить заказ'\n"
+        "4️⃣ Вернитесь сюда и отправьте текст заказа\n\n"
+        "⏱️ Время приготовления: 15-25 минут\n"
+        "💳 Оплата при получении в баре\n\n"
+        "<i>Мы уведомим вас когда заказ будет готов!</i>"
+    )
+
+
+@dp.message(Command("stolovaya"))
+async def cmd_stolovaya(message: Message):
+    """Меню столовой"""
+    await message.answer(
+        "🍴 <b>Меню столовой</b>\n\n"
+        "Столовая открыта:\n"
+        "🌅 Завтрак: 8:00 - 10:00\n"
+        "🌞 Обед: 13:00 - 15:00\n"
+        "🌙 Ужин: 19:00 - 21:00\n\n"
+        "Для заказа свяжитесь с администратором."
+    )
+
+
+@dp.message(Command("booking"))
+async def cmd_booking(message: Message):
+    """Бронирование"""
+    await message.answer(
+        "🏨 <b>Бронирование номеров</b>\n\n"
+        "Для бронирования свяжитесь:\n"
+        "📞 +7 XXX XXX-XX-XX\n"
+        "📧 info@pelikan-alakol.kz\n\n"
+        "Или напишите @pelikan_alakol_support"
+    )
+
+
+@dp.message(Command("transfer"))
+async def cmd_transfer(message: Message):
+    """Трансфер"""
+    await message.answer(
+        "🚗 <b>Заказ трансфера</b>\n\n"
+        "Мы организуем трансфер:\n"
+        "✈️ Из/в аэропорт\n"
+        "🚂 С/на вокзал\n"
+        "🏖️ На пляж\n\n"
+        "Для заказа: @pelikan_alakol_support"
+    )
+
+
+@dp.message(Command("activities"))
+async def cmd_activities(message: Message):
+    """Экскурсии"""
+    await message.answer(
+        "🎯 <b>Экскурсии и развлечения</b>\n\n"
+        "Доступно:\n"
+        "🏊 Водные развлечения\n"
+        "🎣 Рыбалка\n"
+        "🏖️ Экскурсии по озеру\n"
+        "🎨 Мастер-классы\n\n"
+        "Подробности: @pelikan_alakol_support"
+    )
+
+
+@dp.message(Command("info"))
+async def cmd_info(message: Message):
+    """Информация об отеле"""
+    await message.answer(
+        "ℹ️ <b>Отель «Пеликан Алаколь»</b>\n\n"
+        "📍 Озеро Алаколь, Казахстан\n"
+        "🏨 Комфортабельные номера\n"
+        "🍽️ Бар и столовая\n"
+        "🏖️ Собственный пляж\n"
+        "📶 Wi-Fi на территории\n\n"
+        "📞 Контакты:\n"
+        "+7 XXX XXX-XX-XX\n"
+        "info@pelikan-alakol.kz\n\n"
+        "🌐 pelikan-alakol.kz"
+    )
 
 @dp.message(Command("status"))
 async def cmd_status(message: Message, state: FSMContext):
@@ -452,6 +545,101 @@ async def cmd_stats(message: Message):
     
     await message.answer(stats_text)
 
+
+
+# ==================== ОБРАБОТЧИК ТЕКСТОВЫХ ЗАКАЗОВ ====================
+
+@dp.message(F.text.contains("🛎️"))
+async def handle_text_order(message: Message):
+    """Обработка заказа присланного текстом с сайта"""
+    try:
+        text = message.text
+        lines = text.split('\n')
+        
+        # Парсим данные заказа
+        order_data = {
+            'order_id': None,
+            'name': None,
+            'room': None,
+            'total': None,
+            'items_text': text
+        }
+        
+        for line in lines:
+            if 'Заказ #' in line:
+                order_data['order_id'] = line.split('#')[1].strip()
+            elif line.startswith('👤'):
+                order_data['name'] = line.replace('👤', '').strip()
+            elif 'Комната:' in line:
+                order_data['room'] = line.split(':')[1].strip()
+            elif 'Итого:' in line:
+                order_data['total'] = line.split(':')[1].strip()
+        
+        # Проверяем обязательные поля
+        if not all([order_data['order_id'], order_data['name'], order_data['room']]):
+            await message.answer(
+                "❌ Не удалось распознать заказ.\n"
+                "Пожалуйста, используйте кнопку на сайте для копирования текста заказа."
+            )
+            return
+        
+        # Сохраняем в БД
+        async with aiosqlite.connect(DB_FILE) as db:
+            await db.execute('''
+                INSERT INTO orders (
+                    order_id, client_name, room, telegram, 
+                    items, total, status, timestamp, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (
+                order_data['order_id'],
+                order_data['name'],
+                order_data['room'],
+                message.from_user.username or 'unknown',
+                order_data['items_text'],
+                order_data['total'],
+                'принят',
+                datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            ))
+            await db.commit()
+        
+        logger.info(f"Текстовый заказ {order_data['order_id']} сохранён от @{message.from_user.username}")
+        
+        # Подтверждение клиенту
+        await message.answer(
+            f"✅ <b>Ваш заказ #{order_data['order_id']} принят!</b>\n\n"
+            f"👤 {order_data['name']}\n"
+            f"🏨 Комната: {order_data['room']}\n"
+            f"💰 {order_data['total']}\n\n"
+            f"⏱️ Примерное время приготовления: ~20 минут\n\n"
+            f"Мы уведомим вас когда заказ будет готов!\n\n"
+            f"Проверить статус: /status {order_data['order_id']}"
+        )
+        
+        # Уведомление админам
+        admin_message = (
+            f"🔔 <b>Новый заказ из бара!</b>\n\n"
+            f"{text}\n\n"
+            f"📱 Telegram: @{message.from_user.username or 'не указан'}\n"
+            f"🆔 User ID: {message.from_user.id}\n\n"
+            f"<b>Команды:</b>\n"
+            f"/update {order_data['order_id']} готовится\n"
+            f"/update {order_data['order_id']} готов\n"
+            f"/update {order_data['order_id']} выдан"
+        )
+        
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, admin_message)
+            except Exception as e:
+                logger.error(f"Не удалось отправить админу {admin_id}: {e}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка обработки текстового заказа: {e}", exc_info=True)
+        await message.answer(
+            "❌ Произошла ошибка при обработке заказа.\n"
+            "Пожалуйста, свяжитесь с администратором:\n"
+            "📞 +7 XXX XXX-XX-XX"
+        )
 
 # ==================== ОБРАБОТЧИК НЕИЗВЕСТНЫХ КОМАНД ====================
 
