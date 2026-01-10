@@ -6,7 +6,15 @@ from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from aiogram.types import (
+    Message,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+    WebAppInfo,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+)
+
 import aiosqlite
 import os
 from dotenv import load_dotenv
@@ -188,17 +196,36 @@ async def notify_client_status_change(order_id: str, telegram_username: str, new
 
 
 def get_mini_app_keyboard():
-    """Клавиатура с кнопкой Mini App"""
+    """Клавиатура с несколькими Mini Apps"""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [
                 KeyboardButton(
-                    text="🏨 Отель Пеликан",
-                    web_app=WebAppInfo(url="https://pelikan-alakol-site-v2.pages.dev/miniapp.html")
+                    text="🍽️ Меню бара",
+                    web_app=WebAppInfo(
+                        url="https://pelikan-alakol-site-v2.pages.dev/bar.html"
+                    ),
                 )
-            ]
+            ],
+            [
+                KeyboardButton(
+                    text="🍴 Меню столовой",
+                    web_app=WebAppInfo(
+                        url="https://pelikan-alakol-site-v2.pages.dev/index_menu.html"
+                    ),
+                )
+            ],
+            [
+                KeyboardButton(
+                    text="🏨 Бронирование номеров",
+                    web_app=WebAppInfo(
+                        # если файл бронирования лежит под другим путём — поменяй URL здесь
+                        url="https://pelikan-alakol-site-v2.pages.dev/booking.html"
+                    ),
+                )
+            ],
         ],
-        resize_keyboard=True
+        resize_keyboard=True,
     )
     return keyboard
 
@@ -254,19 +281,24 @@ async def cmd_help(message: Message):
 
 @dp.message(Command("bar"))
 async def cmd_bar(message: Message):
-    """Меню бара с ссылкой на сайт"""
+    """Меню бара через Mini App"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🍽️ Открыть меню бара",
+                    web_app=WebAppInfo(
+                        url="https://pelikan-alakol-site-v2.pages.dev/bar.html"
+                    ),
+                )
+            ]
+        ]
+    )
     await message.answer(
         "🍽️ <b>Меню бара Pelikan Alakol</b>\n\n"
-        "Выберите блюда и сделайте заказ на сайте:\n\n"
-        "👉 https://pelikan-alakol-site-v2.pages.dev/\n\n"
-        "📋 <b>Как заказать:</b>\n"
-        "1️⃣ Откройте сайт\n"
-        "2️⃣ Выберите блюда в корзину\n"
-        "3️⃣ Нажмите 'Оформить заказ'\n"
-        "4️⃣ Вернитесь сюда и отправьте текст заказа\n\n"
-        "⏱️ Время приготовления: 15-25 минут\n"
-        "💳 Оплата при получении в баре\n\n"
-        "<i>Мы уведомим вас когда заказ будет готов!</i>"
+        "Откройте мини-приложение, выберите блюда и оформите заказ.\n\n"
+        "<i>Мы уведомим вас, когда заказ будет готов!</i>",
+        reply_markup=keyboard,
     )
 
 
@@ -285,41 +317,47 @@ async def cmd_stolovaya(message: Message):
 
 @dp.message(Command("booking"))
 async def cmd_booking(message: Message):
-    """Бронирование"""
+    """Бронирование через Mini App"""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🏨 Открыть бронирование",
+                    web_app=WebAppInfo(
+                        url="https://pelikan-alakol-site-v2.pages.dev/booking.html"
+                    ),
+                )
+            ]
+        ]
+    )
     await message.answer(
         "🏨 <b>Бронирование номеров</b>\n\n"
-        "Для бронирования свяжитесь:\n"
-        "📞 +7 XXX XXX-XX-XX\n"
-        "📧 info@pelikan-alakol.kz\n\n"
-        "Или напишите @pelikan_alakol_support"
+        "Откройте мини-приложение, выберите даты и тип номера,\n"
+        "а затем оставьте свои контакты для подтверждения.",
+        reply_markup=keyboard,
     )
-
 
 @dp.message(Command("transfer"))
 async def cmd_transfer(message: Message):
-    """Трансфер"""
+    """Трансфер (аутсорсинг)"""
     await message.answer(
         "🚗 <b>Заказ трансфера</b>\n\n"
-        "Мы организуем трансфер:\n"
-        "✈️ Из/в аэропорт\n"
-        "🚂 С/на вокзал\n"
-        "🏖️ На пляж\n\n"
-        "Для заказа: @pelikan_alakol_support"
+        "Трансфер организует наш партнёр.\n\n"
+        "Для заказа и расчёта стоимости напишите:\n"
+        "👉 @pelikan_alakol_support"
     )
 
 
 @dp.message(Command("activities"))
 async def cmd_activities(message: Message):
-    """Экскурсии"""
+    """Экскурсии (в разработке)"""
     await message.answer(
         "🎯 <b>Экскурсии и развлечения</b>\n\n"
-        "Доступно:\n"
-        "🏊 Водные развлечения\n"
-        "🎣 Рыбалка\n"
-        "🏖️ Экскурсии по озеру\n"
-        "🎨 Мастер-классы\n\n"
-        "Подробности: @pelikan_alakol_support"
+        "Раздел сейчас в разработке.\n"
+        "Актуальные предложения можно уточнить у администратора: "
+        "@pelikan_alakol_support"
     )
+
 @dp.message(Command("info"))
 async def cmd_info(message: Message):
     """Информация об отеле"""
