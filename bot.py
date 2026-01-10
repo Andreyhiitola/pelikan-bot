@@ -320,8 +320,6 @@ async def cmd_activities(message: Message):
         "🎨 Мастер-классы\n\n"
         "Подробности: @pelikan_alakol_support"
     )
-
-
 @dp.message(Command("info"))
 async def cmd_info(message: Message):
     """Информация об отеле"""
@@ -335,8 +333,9 @@ async def cmd_info(message: Message):
         "📞 Контакты:\n"
         "+7 XXX XXX-XX-XX\n"
         "info@pelikan-alakol.kz\n\n"
-        "🌐 pelikan-alakol.kz"
-    )
+        "🌐 pelikan-alakol.kz\n\n"
+        "<i>Ниже кнопки: сайт, прайс и правила проживания.</i>"
+    , reply_markup=get_hotel_links_keyboard())
 
 @dp.message(Command("status"))
 async def cmd_status(message: Message, state: FSMContext):
