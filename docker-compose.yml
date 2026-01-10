@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # Telegram бот
   bot:
-    build: .
+   # build: .
     image: andreyhiitola/pelikan-bot:latest
     container_name: pelikan-bot
     restart: unless-stopped
