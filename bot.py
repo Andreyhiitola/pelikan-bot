@@ -69,13 +69,13 @@ async def cmd_start(message: Message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
-                "🍸 Бар (еда на заказ)",
+                text="🍸 Бар (еда на заказ)",
                 web_app=WebAppInfo(
                     url="https://pelikan-alakol-site-v2.pages.dev/bar.html"
                 ),
             ),
             InlineKeyboardButton(
-                "🍴 Столовая",
+                text="🍴 Столовая",
                 web_app=WebAppInfo(
                     url="https://pelikan-alakol-site-v2.pages.dev/index_menu.html"
                 ),
@@ -83,15 +83,21 @@ async def cmd_start(message: Message):
         ],
         [
             InlineKeyboardButton(
-                "🏠 Бронирование номера",
+                text="🏠 Бронирование номера",
                 url="https://pelikan-alakol-site-v2.pages.dev/maxibooking.html",
             ),
-            InlineKeyboardButton("🚗 Трансфер", callback_data="transfer"),
+            InlineKeyboardButton(
+                text="🚗 Трансфер",
+                callback_data="transfer",
+            ),
         ],
         [
-            InlineKeyboardButton("🎯 Экскурсии", callback_data="activities"),
             InlineKeyboardButton(
-                "Задать вопрос",
+                text="🎯 Экскурсии",
+                callback_data="activities",
+            ),
+            InlineKeyboardButton(
+                text="Задать вопрос",
                 url="https://t.me/pelikan_alakol_support",
             ),
         ],
@@ -108,7 +114,6 @@ async def cmd_start(message: Message):
     except Exception as e:
         logger.warning(f"Фото не загрузилось: {e}")
         await message.answer(caption, reply_markup=keyboard)
-
 
 @dp.callback_query(F.data.in_(["transfer", "activities"]))
 async def handle_simple(callback: CallbackQuery):
