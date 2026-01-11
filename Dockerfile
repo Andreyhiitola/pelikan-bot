@@ -14,6 +14,12 @@ COPY bot.py .
 
 RUN mkdir -p /app/data
 
+# 🔹 Порт, который слушает aiohttp внутри контейнера
+ENV WEBHOOK_PORT=8080
+
+# 🔹 Документация для Docker / compose
+EXPOSE 8080
+
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import sqlite3; sqlite3.connect('/app/data/orders.db').close()" || exit 1
 
