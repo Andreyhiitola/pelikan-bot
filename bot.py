@@ -3,14 +3,12 @@ import logging
 import os
 import json
 from datetime import datetime
-
 import aiosqlite
 from aiohttp import web
 from dotenv import load_dotenv
-
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.client.default import DefaultBotProperties
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
     Message, CallbackQuery,
@@ -456,5 +454,3 @@ async def handle_simple(callback: types.CallbackQuery):
 if __name__ == "__main__":
     asyncio.run(main())
 
-if __name__ == "__main__":
-    asyncio.run(main())
