@@ -2,6 +2,8 @@
 
 ## Фаза 1: Docker + CI/CD (1-2 дня) ← СЕЙЧАС
 
+
+
 ### Задачи:
 - [x] Создать Dockerfile
 - [x] Настроить docker-compose
