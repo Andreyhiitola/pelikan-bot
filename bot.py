@@ -190,12 +190,23 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
         for item in order_data.get("items", [])
     )
 
+    # корректно собираем контакт
+    telegram_user_id = order_data.get("telegram_user_id")
+    telegram_username = order_data.get("telegram_username")
+
+    if telegram_username:
+        telegram_contact = f"@{telegram_username}"
+    elif telegram_user_id:
+        telegram_contact = f"ID:{telegram_user_id}"
+    else:
+        telegram_contact = "не указан"
+
     admin_message = f"""
 <b>🆕 Новый заказ #{order_id}</b>
 
 👤 Клиент: <b>{order_data.get('name')}</b>
 🏨 Комната: <b>{order_data.get('room')}</b>
-📱 Telegram: {order_data.get('telegram_username') or 'не указан'}
+📱 Telegram: {telegram_contact}
 
 🍽 <b>Заказ:</b>
 {items_text}
@@ -211,7 +222,6 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
             await bot.send_message(admin_id, admin_message)
         except Exception as e:
             logger.error(f"Ошибка отправки админу {admin_id}: {e}")
-
 
 async def notify_client_order_received(order_id: str, order_data: dict):
     telegram_username = order_data.get("telegram_username")
