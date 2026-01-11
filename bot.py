@@ -198,7 +198,7 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
 💰 <b>Итого: {order_data.get('total')} ₸</b>
 🕐 {order_data.get('timestamp')}
 
-<i>Для изменения статуса: /update {order_id} <статус></i>
+<i>Для изменения статуса: /update {order_id} &lt;статус&gt;</i>
 """.strip()
 
     for admin_id in ADMIN_IDS:
