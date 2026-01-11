@@ -1,6 +1,7 @@
 services:
   bot:
-    build: .
+    image: andreysagurov/pelikan-bot:latest
+
     # image: andreysagurov/pelikan-bot:latest
 
     container_name: pelikan-bot
