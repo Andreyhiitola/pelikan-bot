@@ -300,6 +300,161 @@ async def main():
     asyncio.create_task(start_webhook_server())
     await dp.start_polling(bot)
 
+# ==================== ОБРАБОТЧИКИ КОМАНД ====================
+
+@dp.message(Command("update"))
+async def cmd_update_status(message: types.Message, command: CommandObject):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ У вас нет прав.")
+        return
+
+    args = command.args
+    if not args or len(args.split()) < 2:
+        await message.answer("❌ Формат: /update ORD123456 статус")
+        return
+
+    order_id, new_status = args.split(maxsplit=1)
+    new_status = new_status.lower()
+
+    valid_statuses = ["принят", "готовится", "готов", "выдан", "отменен"]
+    if new_status not in valid_statuses:
+        await message.answer(f"❌ Неверный статус. Доступны: {', '.join(valid_statuses)}")
+        return
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "UPDATE orders SET status = ? WHERE order_id = ?",
+            (new_status, order_id)
+        )
+        await db.commit()
+
+        if cursor.rowcount == 0:
+            await message.answer(f"❌ Заказ {order_id} не найден")
+            return
+
+    await notify_client_status_update(order_id, new_status)
+    await message.answer(f"✅ Статус {order_id} изменён на '{new_status}'")
+
+
+@dp.message(Command("status"))
+async def cmd_status(message: types.Message, command: CommandObject):
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ У вас нет прав.")
+        return
+
+    order_id = command.args
+    if not order_id:
+        await message.answer("❌ Формат: /status ORD123456")
+        return
+
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT * FROM orders WHERE order_id = ?", (order_id,)
+        )
+        row = await cursor.fetchone()
+
+    if not row:
+        await message.answer(f"❌ Заказ {order_id} не найден")
+        return
+
+    order_dict = dict(zip([d[0] for d in cursor.description], row))
+    items = json.loads(order_dict["items"])
+
+    items_text = "\n".join(
+        f"• {item['name']} x{item.get('quantity', 1)} — {item['price']} ₸"
+        for item in items
+    )
+
+    telegram_user_id = order_dict['telegram_user_id']
+    telegram_username = order_dict['telegram_username']
+    contact_info = f"@{telegram_username}" if telegram_username else f"ID:{telegram_user_id}"
+
+    status_message = f"""
+<b>Заказ #{order_id}</b>
+
+👤 Клиент: {order_dict['client_name']}
+🏨 Комната: {order_dict['room']}
+📱 Telegram: {contact_info}
+
+🍽 Заказ:
+{items_text}
+
+💰 Итого: {order_dict['total']} ₸
+🕐 {order_dict['timestamp']}
+📊 Статус: {order_dict['status']}
+""".strip()
+
+    await message.answer(status_message, parse_mode="HTML")
+
+
+# ==================== УВЕДОМЛЕНИЯ КЛИЕНТУ ====================
+
+async def notify_client_status_update(order_id: str, status: str):
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT telegram_user_id, telegram_username FROM orders WHERE order_id = ?",
+            (order_id,)
+        )
+        row = await cursor.fetchone()
+        
+        if not row:
+            return
+        
+        telegram_user_id, telegram_username = row
+
+    messages = {
+        "готовится": f"⏳ Ваш заказ #{order_id} готовится!",
+        "готов": f"✅ Ваш заказ #{order_id} готов! Можно забирать в баре.",
+        "выдан": f"🎉 Ваш заказ #{order_id} выдан! Приятного аппетита!",
+        "отменен": f"❌ Заказ #{order_id} отменен. Свяжитесь с администратором.",
+    }
+    
+    message = messages.get(status, f"Статус заказа #{order_id} обновлён.")
+
+    if telegram_user_id:
+        try:
+            await bot.send_message(telegram_user_id, message)
+        except Exception as e:
+            logger.warning(f"Не удалось отправить клиенту {telegram_user_id}: {e}")
+
+
+# ==================== ОСТАЛЬНЫЕ ХЕНДЛЕРЫ ====================
+
+@dp.message(Command("help"))
+async def cmd_help(message: types.Message):
+    text = (
+        "📖 <b>Помощь</b>\n\n"
+        "🍸 Бар — еда и напитки в номер\n"
+        "• Нажми кнопку «Бар» внизу слева\n\n"
+        "🏠 Бронирование — онлайн на сайте\n"
+        "🚗 Трансфер / 🎯 Экскурсии — пиши @pelikan_alakol_support\n\n"
+        "Проверка статуса:\n"
+        "/status &lt;номер_заказа&gt;\n"
+        "Укажи номер комнаты\n\n"
+        "Статусы:\n"
+        "🟡 Принят\n🟠 Готовится\n🟢 Готов\n✅ Выдан\n\n"
+        "Оплата — в баре при получении"
+    )
+    await message.answer(text)
+
+
+@dp.callback_query(F.data.in_(["transfer", "activities"]))
+async def handle_simple(callback: types.CallbackQuery):
+    if callback.data == "transfer":
+        await callback.message.answer(
+            "🚗 Для заказа трансфера пиши @pelikan_alakol_support"
+        )
+    elif callback.data == "activities":
+        await callback.message.answer(
+            "🎯 Экскурсии — уточняй у @pelikan_alakol_support"
+        )
+    await callback.answer()
+
+
+# ==================== MAIN ====================
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 if __name__ == "__main__":
     asyncio.run(main())
