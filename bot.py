@@ -231,22 +231,48 @@ def get_mini_app_keyboard():
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    """Приветственное сообщение"""
-    await message.answer(
-        "👋 <b>Добро пожаловать в бот отеля «Пеликан Алаколь»!</b>\n\n"
-        "🍽️ /bar - Меню бара (заказ еды)\n"
-        "🍴 /stolovaya - Меню столовой\n"
-        "🏨 /booking - Бронирование номеров\n"
-        "🚗 /transfer - Заказ трансфера\n"
-        "🎯 /activities - Экскурсии и развлечения\n"
-        "ℹ️ /info - Информация об отеле\n"
-        "❓ /help - Помощь\n\n"
-        "📱 <b>Для гостей:</b>\n"
-        "• Заказывайте еду через наш сайт\n"
-        "• Получайте уведомления о готовности\n"
-        "• Следите за статусом заказа\n\n"
-        "<i>Приятного отдыха! 🌊</i>"
-    , reply_markup=get_mini_app_keyboard())
+    caption = (
+        "🌊 <b>Пеликан Алаколь</b>\n\n"
+        "Еда, напитки, номера и отдых в одном месте 🏖️"
+    )
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="🍸 Бар (еда на заказ)",
+                web_app=WebAppInfo(url="https://pelikan-alakol-site-v2.pages.dev/bar.html")
+            ),
+            InlineKeyboardButton(
+                text="🍴 Столовая",
+                web_app=WebAppInfo(url="https://pelikan-alakol-site-v2.pages.dev/index_menu.html")
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="🏠 Бронирование номера",
+                url="https://pelikan-alakol-site-v2.pages.dev/maxibooking.html"  # ← переход на красивую промежуточную страницу
+            ),
+            InlineKeyboardButton("🚗 Трансфер", callback_data="transfer"),
+        ],
+        [
+            InlineKeyboardButton("🎯 Экскурсии", callback_data="activities"),
+            InlineKeyboardButton("Задать вопрос", url="https://t.me/pelikan_alakol_support"),
+        ]
+    ])
+
+    # Фото отеля (замени на реальную красивую фотографию!)
+    photo_url = "https://pelikan-alakol-site-v2.pages.dev/img/welcome-beach.jpg"  # ← пример, вставь свою
+
+    try:
+        await message.answer_photo(
+            photo=photo_url,
+            caption=caption,
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        # Если фото не загрузилось — просто текст (fallback)
+        await message.answer(caption, reply_markup=keyboard)
+
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
     """Помощь по использованию бота"""
