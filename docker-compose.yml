@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
-  # Telegram бот
   bot:
-   # build: .
-    image: andreyhiitola/pelikan-bot:latest
+    build: .
+    # image: andreysagurov/pelikan-bot:latest
+
     container_name: pelikan-bot
     restart: unless-stopped
     env_file:
@@ -50,6 +48,4 @@ services:
         max-size: "5m"
         max-file: "2"
 
-networks:
-  default:
-    name: pelikan-network
+
