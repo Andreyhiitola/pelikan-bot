@@ -320,7 +320,7 @@ async def handle_webapp_order(message: Message):
 
 @dp.message(Command("orders"))
 async def cmd_orders(message: Message):
-    """Список активных заказов"""
+    """Список активных заказов с кнопками управления"""
     if message.from_user.id not in ADMIN_IDS:
         await message.answer("❌ У вас нет прав.")
         return
@@ -335,12 +335,69 @@ async def cmd_orders(message: Message):
         await message.answer("📋 Активных заказов нет")
         return
     
-    text = "<b>📋 Активные заказы:</b>\n\n"
     for order_id, name, room, status, total in rows:
         emoji = {"принят": "🟡", "готовится": "🟠", "готов": "🟢"}.get(status, "⚪")
-        text += f"{emoji} #{order_id}\n👤 {name} | 🏨 {room}\n💰 {total}₸ | {status}\n\n"
+        
+        text = f"{emoji} <b>#{order_id}</b>\n👤 {name} | 🏨 {room}\n💰 {total}₸\n📊 Статус: {status}"
+        
+        # Создаём кнопки
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⏳ Готовится", callback_data=f"status:{order_id}:готовится"),
+                InlineKeyboardButton(text="✅ Готов", callback_data=f"status:{order_id}:готов"),
+            ],
+            [
+                InlineKeyboardButton(text="🎉 Выдан", callback_data=f"status:{order_id}:выдан"),
+            ]
+        ])
+        
+        await message.answer(text, reply_markup=keyboard)
+
+
+# ==================== ОБРАБОТЧИК КНОПОК ====================
+
+@dp.callback_query(F.data.startswith("status:"))
+async def handle_status_button(callback: CallbackQuery):
+    """Обработка нажатия кнопки изменения статуса"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
     
-    await message.answer(text)
+    # Парсим данные: status:ORD123456:готовится
+    parts = callback.data.split(":")
+    order_id = parts[1]
+    new_status = parts[2]
+    
+    # Обновляем статус в базе
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "UPDATE orders SET status = ? WHERE order_id = ?",
+            (new_status, order_id)
+        )
+        await db.commit()
+        
+        if cursor.rowcount == 0:
+            await callback.answer("❌ Заказ не найден", show_alert=True)
+            return
+    
+    # Уведомляем клиента
+    await notify_client_status_update(order_id, new_status)
+    
+    # Обновляем сообщение
+    emoji = {"готовится": "🟠", "готов": "🟢", "выдан": "🎉"}.get(new_status, "⚪")
+    new_text = callback.message.text.split('\n')
+    new_text[0] = f"{emoji} <b>#{order_id}</b>"
+    new_text[-1] = f"📊 Статус: {new_status}"
+    
+    try:
+        await callback.message.edit_text(
+            "\n".join(new_text),
+            reply_markup=None if new_status == "выдан" else callback.message.reply_markup
+        )
+    except:
+        pass
+    
+    await callback.answer(f"✅ Статус изменён на '{new_status}'")
 
 
 @dp.message(Command("stats"))
