@@ -284,6 +284,102 @@ async def start_webhook_server():
     logger.info(f"HTTP API запущен на порту {WEBHOOK_PORT} (/api/order)")
 
 
+
+# ==================== WEBAPP ОБРАБОТЧИК ====================
+
+@dp.message(F.web_app_data)
+async def handle_webapp_order(message: Message):
+    """Обработка заказа из Mini App"""
+    try:
+        order_data = json.loads(message.web_app_data.data)
+        
+        # Добавляем telegram данные
+        order_data["telegram_user_id"] = message.from_user.id
+        order_data["telegram_username"] = message.from_user.username
+        order_data["timestamp"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Сохраняем
+        result = await save_order(order_data)
+        
+        if result["status"] == "ok":
+            await message.answer(
+                f"✅ <b>Заказ #{result['order_id']} принят!</b>\n\n"
+                f"💰 Итого: {order_data['total']}₸\n"
+                f"⏱️ Примерное время: ~20 минут\n\n"
+                f"Проверить статус: /status {result['order_id']}"
+            )
+        else:
+            await message.answer("❌ Ошибка при создании заказа")
+            
+    except Exception as e:
+        logger.error(f"Ошибка обработки WebApp: {e}")
+        await message.answer("❌ Ошибка при обработке заказа")
+
+
+# ==================== КОМАНДЫ ДЛЯ АДМИНОВ ====================
+
+@dp.message(Command("orders"))
+async def cmd_orders(message: Message):
+    """Список активных заказов"""
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ У вас нет прав.")
+        return
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT order_id, client_name, room, status, total FROM orders WHERE status != 'выдан' ORDER BY created_at DESC LIMIT 10"
+        )
+        rows = await cursor.fetchall()
+    
+    if not rows:
+        await message.answer("📋 Активных заказов нет")
+        return
+    
+    text = "<b>📋 Активные заказы:</b>\n\n"
+    for order_id, name, room, status, total in rows:
+        emoji = {"принят": "🟡", "готовится": "🟠", "готов": "🟢"}.get(status, "⚪")
+        text += f"{emoji} #{order_id}\n👤 {name} | 🏨 {room}\n💰 {total}₸ | {status}\n\n"
+    
+    await message.answer(text)
+
+
+@dp.message(Command("stats"))
+async def cmd_stats(message: Message):
+    """Статистика за сегодня"""
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ У вас нет прав.")
+        return
+    
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        # Всего заказов
+        cursor = await db.execute(
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today,)
+        )
+        total_orders, total_sum = await cursor.fetchone()
+        
+        # По статусам
+        cursor = await db.execute(
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today,)
+        )
+        statuses = await cursor.fetchall()
+    
+    status_text = "\n".join([f"• {s[0]}: {s[1]}" for s in statuses])
+    
+    text = f"""
+📊 <b>Статистика за {today}</b>
+
+📦 Всего заказов: {total_orders or 0}
+💰 Сумма: {total_sum or 0}₸
+
+Статусы:
+{status_text or 'нет данных'}
+"""
+    
+    await message.answer(text)
+
+
 # ==================== MAIN ====================
 
 async def main():
