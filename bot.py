@@ -64,7 +64,8 @@ async def init_db():
 async def cmd_start(message: Message):
     caption = "🌊 <b>Пеликан Алаколь</b>\n\nВыберите услугу ↓"
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    # Базовые кнопки для всех
+    buttons = [
         [
             InlineKeyboardButton(
                 text="🍸 Бар (еда на заказ)",
@@ -99,7 +100,18 @@ async def cmd_start(message: Message):
                 url="https://t.me/pelikan_alakol_support",
             ),
         ],
-    ])
+    ]
+    
+    # Добавляем админскую кнопку для админов
+    if message.from_user.id in ADMIN_IDS:
+        buttons.append([
+            InlineKeyboardButton(
+                text="👨‍💼 Админ-панель",
+                callback_data="admin_panel"
+            )
+        ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     photo_url = "https://pelikan-alakol-site-v2.pages.dev/img/welcome-beach.jpg"
 
@@ -112,6 +124,65 @@ async def cmd_start(message: Message):
     except Exception as e:
         logger.warning(f"Фото не загрузилось: {e}")
         await message.answer(caption, reply_markup=keyboard)
+
+
+# ==================== АДМИН-ПАНЕЛЬ ====================
+
+@dp.callback_query(F.data == "admin_panel")
+async def show_admin_panel(callback: CallbackQuery):
+    """Показать админ-панель"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    text = "👨‍💼 <b>АДМИН-ПАНЕЛЬ</b>\n\nУправление заказами и статистика"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📋 Активные заказы", callback_data="admin_orders")
+        ],
+        [
+            InlineKeyboardButton(text="📊 Статистика за день", callback_data="admin_stats")
+        ],
+        [
+            InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")
+        ]
+    ])
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
+
+
+@dp.callback_query(F.data == "admin_orders")
+async def show_admin_orders(callback: CallbackQuery):
+    """Показать активные заказы (вызов команды /orders)"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer()
+    # Вызываем функцию /orders
+    await cmd_orders(callback.message)
+
+
+@dp.callback_query(F.data == "admin_stats")
+async def show_admin_stats(callback: CallbackQuery):
+    """Показать статистику (вызов команды /stats)"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer()
+    # Вызываем функцию /stats
+    await cmd_stats(callback.message)
+
+
+@dp.callback_query(F.data == "back_to_menu")
+async def back_to_menu(callback: CallbackQuery):
+    """Вернуться в главное меню"""
+    await callback.answer()
+    await cmd_start(callback.message)
+
 
 @dp.callback_query(F.data.in_(["transfer", "activities"]))
 async def handle_simple(callback: CallbackQuery):
