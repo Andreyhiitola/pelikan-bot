@@ -751,30 +751,6 @@ async def handle_webapp_order(message: Message):
 
 # ==================== КОМАНДЫ ДЛЯ АДМИНОВ ====================
 
-@dp.message(Command("orders"))
-async def cmd_orders(message: Message):
-    """Список активных заказов"""
-    if message.from_user.id not in ADMIN_IDS:
-        await message.answer("❌ У вас нет прав.")
-        return
-    
-    async with aiosqlite.connect(DB_FILE) as db:
-        cursor = await db.execute(
-            "SELECT order_id, client_name, room, status, total FROM orders WHERE status != 'выдан' ORDER BY created_at DESC LIMIT 10"
-        )
-        rows = await cursor.fetchall()
-    
-    if not rows:
-        await message.answer("📋 Активных заказов нет")
-        return
-    
-    text = "<b>📋 Активные заказы:</b>\n\n"
-    for order_id, name, room, status, total in rows:
-        emoji = {"принят": "🟡", "готовится": "🟠", "готов": "🟢"}.get(status, "⚪")
-        text += f"{emoji} #{order_id}\n👤 {name} | 🏨 {room}\n💰 {total}₸ | {status}\n\n"
-    
-    await message.answer(text)
-
 
 @dp.message(Command("stats"))
 async def cmd_stats(message: Message):
