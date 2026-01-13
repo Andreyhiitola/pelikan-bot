@@ -341,18 +341,23 @@ async def show_admin_stats(callback: CallbackQuery):
     
     await callback.answer()
     
-    today = datetime.now().strftime('%Y-%m-%d')
+    # Получаем сегодняшнюю дату в UTC (база хранит в UTC)
+    from datetime import timedelta
+    now_utc = datetime.utcnow()
+    # Казахстан UTC+5
+    now_kz = now_utc + timedelta(hours=5)
+    today = now_kz.strftime('%Y-%m-%d')
     
     async with aiosqlite.connect(DB_FILE) as db:
-        # Всего заказов
+        # Всего заказов (сравниваем с UTC датой, учитывая offset)
         cursor = await db.execute(
-            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today,)
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(datetime(created_at, '+5 hours')) = ?", (today,)
         )
         total_orders, total_sum = await cursor.fetchone()
         
         # По статусам
         cursor = await db.execute(
-            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today,)
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(datetime(created_at, '+5 hours')) = ? GROUP BY status", (today,)
         )
         statuses = await cursor.fetchall()
     
@@ -759,18 +764,23 @@ async def cmd_stats(message: Message):
         await message.answer("❌ У вас нет прав.")
         return
     
-    today = datetime.now().strftime('%Y-%m-%d')
+    # Получаем сегодняшнюю дату в UTC (база хранит в UTC)
+    from datetime import timedelta
+    now_utc = datetime.utcnow()
+    # Казахстан UTC+5
+    now_kz = now_utc + timedelta(hours=5)
+    today = now_kz.strftime('%Y-%m-%d')
     
     async with aiosqlite.connect(DB_FILE) as db:
-        # Всего заказов
+        # Всего заказов (сравниваем с UTC датой, учитывая offset)
         cursor = await db.execute(
-            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today,)
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(datetime(created_at, '+5 hours')) = ?", (today,)
         )
         total_orders, total_sum = await cursor.fetchone()
         
         # По статусам
         cursor = await db.execute(
-            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today,)
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(datetime(created_at, '+5 hours')) = ? GROUP BY status", (today,)
         )
         statuses = await cursor.fetchall()
     
