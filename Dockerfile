@@ -5,12 +5,17 @@ LABEL description="Telegram bot for Pelikan Alakol Hotel"
 
 WORKDIR /app
 
+# Устанавливаем timezone Казахстана (Алматы/Восточный Казахстан UTC+6)
+ENV TZ=Asia/Almaty
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 # Устанавливаем шрифты для кириллицы в PDF
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     fonts-dejavu \
     fonts-dejavu-core \
-    fonts-dejavu-extra && \
+    fonts-dejavu-extra \
+    tzdata && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
