@@ -329,6 +329,271 @@ async def handle_pdf_button(callback: CallbackQuery):
 
 
 
+@dp.callback_query(F.data == "admin_export")
+async def show_export_menu(callback: CallbackQuery):
+    """Меню экспорта заказов"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer()
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📅 Сегодня", callback_data="export:today")],
+        [InlineKeyboardButton(text="📆 Вчера", callback_data="export:yesterday")],
+        [InlineKeyboardButton(text="📊 За неделю", callback_data="export:week")],
+        [InlineKeyboardButton(text="📈 За месяц", callback_data="export:month")],
+        [InlineKeyboardButton(text="🗂️ Всё время", callback_data="export:all")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="admin_panel")],
+    ])
+    
+    await callback.message.answer(
+        "📥 <b>Экспорт заказов</b>\n\nВыберите период:",
+        reply_markup=keyboard
+    )
+
+
+@dp.callback_query(F.data.startswith("export:"))
+async def handle_export(callback: CallbackQuery):
+    """Экспорт заказов в CSV"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer("⏳ Формирую отчёт...")
+    
+    period = callback.data.split(":")[1]
+    
+    from datetime import timedelta
+    import csv
+    import tempfile
+    
+    # Определяем период
+    now_utc = datetime.utcnow()
+    now_kz = now_utc + timedelta(hours=5)
+    
+    if period == "today":
+        date_from = now_kz.strftime('%Y-%m-%d')
+        date_to = now_kz.strftime('%Y-%m-%d')
+        period_name = "сегодня"
+    elif period == "yesterday":
+        yesterday = now_kz - timedelta(days=1)
+        date_from = yesterday.strftime('%Y-%m-%d')
+        date_to = yesterday.strftime('%Y-%m-%d')
+        period_name = "вчера"
+    elif period == "week":
+        week_ago = now_kz - timedelta(days=7)
+        date_from = week_ago.strftime('%Y-%m-%d')
+        date_to = now_kz.strftime('%Y-%m-%d')
+        period_name = "неделя"
+    elif period == "month":
+        month_ago = now_kz - timedelta(days=30)
+        date_from = month_ago.strftime('%Y-%m-%d')
+        date_to = now_kz.strftime('%Y-%m-%d')
+        period_name = "месяц"
+    else:  # all
+        date_from = None
+        date_to = None
+        period_name = "всё время"
+    
+    # Получаем данные
+    async with aiosqlite.connect(DB_FILE) as db:
+        if date_from:
+            cursor = await db.execute(
+                """SELECT order_id, client_name, room, telegram_username, items, total, status, 
+                   datetime(created_at, '+5 hours') as created_kz
+                   FROM orders 
+                   WHERE DATE(datetime(created_at, '+5 hours')) BETWEEN ? AND ?
+                   ORDER BY created_at DESC""",
+                (date_from, date_to)
+            )
+        else:
+            cursor = await db.execute(
+                """SELECT order_id, client_name, room, telegram_username, items, total, status,
+                   datetime(created_at, '+5 hours') as created_kz
+                   FROM orders 
+                   ORDER BY created_at DESC"""
+            )
+        rows = await cursor.fetchall()
+    
+    if not rows:
+        await callback.message.answer(f"📭 Нет заказов за период: {period_name}")
+        return
+    
+    # Создаём CSV
+    csv_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv', encoding='utf-8-sig')
+    writer = csv.writer(csv_file)
+    
+    # Заголовки
+    writer.writerow(['Номер заказа', 'Клиент', 'Комната', 'Telegram', 'Состав', 'Сумма', 'Статус', 'Дата/Время'])
+    
+    # Данные
+    for row in rows:
+        order_id, name, room, username, items_json, total, status, created = row
+        
+        # Парсим состав заказа
+        try:
+            items = json.loads(items_json)
+            items_text = "; ".join([f"{item['name']} x{item.get('quantity', 1)}" for item in items])
+        except:
+            items_text = "н/д"
+        
+        writer.writerow([
+            order_id,
+            name,
+            room,
+            f"@{username}" if username else "н/д",
+            items_text,
+            total,
+            status,
+            created
+        ])
+    
+    csv_file.close()
+    
+    # Отправляем файл
+    try:
+        await bot.send_document(
+            callback.from_user.id,
+            document=FSInputFile(csv_file.name),
+            caption=f"📥 Экспорт заказов за <b>{period_name}</b>\n📦 Всего: {len(rows)} заказов"
+        )
+        await callback.message.answer("✅ Отчёт отправлен!")
+    except Exception as e:
+        logger.error(f"Ошибка отправки CSV: {e}")
+        await callback.message.answer("❌ Ошибка при отправке файла")
+    finally:
+        import os
+        try:
+            os.unlink(csv_file.name)
+        except:
+            pass
+
+
+@dp.callback_query(F.data == "admin_cleanup")
+async def confirm_cleanup(callback: CallbackQuery):
+    """Подтверждение очистки старых данных"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer()
+    
+    # Считаем сколько заказов будет удалено
+    from datetime import timedelta
+    cutoff_date = (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT COUNT(*), MIN(created_at), MAX(created_at) FROM orders WHERE created_at < ?",
+            (cutoff_date,)
+        )
+        count, oldest, newest = await cursor.fetchone()
+    
+    if not count or count == 0:
+        await callback.message.answer("✅ Нет данных старше 30 дней для удаления")
+        return
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Да, удалить", callback_data="cleanup_confirm"),
+            InlineKeyboardButton(text="❌ Отмена", callback_data="admin_panel"),
+        ]
+    ])
+    
+    await callback.message.answer(
+        f"⚠️ <b>ВНИМАНИЕ!</b>\n\n"
+        f"Будет удалено:\n"
+        f"• <b>{count}</b> заказов\n"
+        f"• Период: старше 30 дней\n"
+        f"• Самый старый: {oldest[:10]}\n"
+        f"• Самый новый: {newest[:10]}\n\n"
+        f"<b>Перед удалением будет создан архив (CSV)</b>\n\n"
+        f"Продолжить?",
+        reply_markup=keyboard
+    )
+
+
+@dp.callback_query(F.data == "cleanup_confirm")
+async def execute_cleanup(callback: CallbackQuery):
+    """Выполнение очистки с архивацией"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer("⏳ Создаю архив и удаляю...")
+    
+    from datetime import timedelta
+    import csv
+    import tempfile
+    
+    cutoff_date = (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d %H:%M:%S')
+    
+    # 1. Создаём архив
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            """SELECT order_id, client_name, room, telegram_username, items, total, status, created_at
+               FROM orders WHERE created_at < ?
+               ORDER BY created_at DESC""",
+            (cutoff_date,)
+        )
+        rows = await cursor.fetchall()
+    
+    if not rows:
+        await callback.message.answer("✅ Нет данных для удаления")
+        return
+    
+    # Создаём CSV архив
+    csv_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.csv', encoding='utf-8-sig')
+    writer = csv.writer(csv_file)
+    writer.writerow(['Номер заказа', 'Клиент', 'Комната', 'Telegram', 'Состав', 'Сумма', 'Статус', 'Дата/Время'])
+    
+    for row in rows:
+        order_id, name, room, username, items_json, total, status, created = row
+        try:
+            items = json.loads(items_json)
+            items_text = "; ".join([f"{item['name']} x{item.get('quantity', 1)}" for item in items])
+        except:
+            items_text = "н/д"
+        
+        writer.writerow([order_id, name, room, f"@{username}" if username else "н/д", items_text, total, status, created])
+    
+    csv_file.close()
+    
+    # 2. Отправляем архив
+    try:
+        await bot.send_document(
+            callback.from_user.id,
+            document=FSInputFile(csv_file.name),
+            caption=f"🗄️ <b>Архив перед удалением</b>\n📦 Заказов: {len(rows)}"
+        )
+    except Exception as e:
+        logger.error(f"Ошибка отправки архива: {e}")
+        await callback.message.answer("❌ Ошибка создания архива. Удаление отменено.")
+        return
+    finally:
+        import os
+        try:
+            os.unlink(csv_file.name)
+        except:
+            pass
+    
+    # 3. Удаляем данные
+    async with aiosqlite.connect(DB_FILE) as db:
+        await db.execute("DELETE FROM orders WHERE created_at < ?", (cutoff_date,))
+        await db.commit()
+    
+    logger.info(f"Admin {callback.from_user.id} deleted {len(rows)} orders older than 30 days")
+    
+    await callback.message.answer(
+        f"✅ <b>Очистка выполнена!</b>\n\n"
+        f"Удалено: {len(rows)} заказов\n"
+        f"Архив сохранён в файле выше"
+    )
+
+
+
+
 
 
 
