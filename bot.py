@@ -7,6 +7,27 @@ import aiosqlite
 from aiohttp import web
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F, types
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import black
+import tempfile
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import black
+import tempfile
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.colors import black
+import tempfile
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -14,7 +35,7 @@ from aiogram.types import (
     Message, CallbackQuery,
     InlineKeyboardMarkup, InlineKeyboardButton,
     WebAppInfo,
-)
+    FSInputFile)
 
 # ==================== НАСТРОЙКИ ====================
 
@@ -26,8 +47,7 @@ DB_FILE = os.getenv("DB_FILE", "orders.db")
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "8080"))
 ALLOWED_ORIGIN = os.getenv(
     "ALLOWED_ORIGIN",
-    "https://pelikan-alakol-site-v2.pages.dev",
-)
+    "https://pelikan-alakol-site-v2.pages.dev")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -71,34 +91,28 @@ async def cmd_start(message: Message):
                 text="🍸 Бар (еда на заказ)",
                 web_app=WebAppInfo(
                     url="https://pelikan-alakol-site-v2.pages.dev/bar.html"
-                ),
-            ),
+                )),
             InlineKeyboardButton(
                 text="🍴 Столовая",
                 web_app=WebAppInfo(
                     url="https://pelikan-alakol-site-v2.pages.dev/index_menu.html"
-                ),
-            ),
+                )),
         ],
         [
             InlineKeyboardButton(
                 text="🏠 Бронирование номера",
-                url="https://pelikan-alakol-site-v2.pages.dev/maxibooking.html",
-            ),
+                url="https://pelikan-alakol-site-v2.pages.dev/maxibooking.html"),
             InlineKeyboardButton(
                 text="🚗 Трансфер",
-                callback_data="transfer",
-            ),
+                callback_data="transfer"),
         ],
         [
             InlineKeyboardButton(
                 text="🎯 Экскурсии",
-                callback_data="activities",
-            ),
+                callback_data="activities"),
             InlineKeyboardButton(
                 text="Задать вопрос",
-                url="https://t.me/pelikan_alakol_support",
-            ),
+                url="https://t.me/pelikan_alakol_support"),
         ],
     ]
     
@@ -119,8 +133,7 @@ async def cmd_start(message: Message):
         await message.answer_photo(
             photo=photo_url,
             caption=caption,
-            reply_markup=keyboard,
-        )
+            reply_markup=keyboard)
     except Exception as e:
         logger.warning(f"Фото не загрузилось: {e}")
         await message.answer(caption, reply_markup=keyboard)
@@ -276,13 +289,13 @@ async def show_admin_stats(callback: CallbackQuery):
     async with aiosqlite.connect(DB_FILE) as db:
         # Всего заказов
         cursor = await db.execute(
-            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today,)
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today)
         )
         total_orders, total_sum = await cursor.fetchone()
         
         # По статусам
         cursor = await db.execute(
-            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today,)
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today)
         )
         statuses = await cursor.fetchall()
     
@@ -360,9 +373,7 @@ async def save_order(order_data: dict) -> dict:
                     order_data.get("telegram_username"),
                     json.dumps(order_data.get("items", []), ensure_ascii=False),
                     order_data.get("total"),
-                    order_data.get("timestamp"),
-                ),
-            )
+                    order_data.get("timestamp")))
             await db.commit()
 
         logger.info(f"Заказ #{order_id} сохранён")
@@ -377,13 +388,110 @@ async def save_order(order_data: dict) -> dict:
         return {"status": "error", "message": str(e)}
 
 
+
+
+def generate_receipt_pdf(order_id: str, order_data: dict) -> str:
+    """Генерирует PDF накладную и возвращает путь к файлу"""
+    # Создаём временный файл
+    pdf_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+    pdf_path = pdf_file.name
+    pdf_file.close()
+    
+    # Создаём PDF
+    c = canvas.Canvas(pdf_path, pagesize=A4)
+    width, height = A4
+    
+    # Пытаемся загрузить русский шрифт
+    try:
+        pdfmetrics.registerFont(TTFont('DejaVu', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+        font_name = 'DejaVu'
+    except:
+        font_name = 'Helvetica'
+    
+    # Заголовок
+    c.setFont(font_name, 16)
+    c.drawCentredString(width/2, height - 50*mm, "ПЕЛИКАН АЛАКОЛЬ")
+    c.setFont(font_name, 12)
+    c.drawCentredString(width/2, height - 60*mm, "Заказ из бара")
+    
+    # Линия
+    c.line(40*mm, height - 65*mm, width - 40*mm, height - 65*mm)
+    
+    y = height - 75*mm
+    c.setFont(font_name, 10)
+    
+    # Информация о заказе
+    c.drawString(40*mm, y, f"Заказ №: {order_id}")
+    y -= 6*mm
+    
+    from datetime import datetime
+    try:
+        dt = datetime.fromisoformat(order_data.get('timestamp', '').replace('Z', '+00:00'))
+        date_str = dt.strftime('%d.%m.%Y %H:%M')
+    except:
+        date_str = order_data.get('timestamp', 'н/д')
+    
+    c.drawString(40*mm, y, f"Дата: {date_str}")
+    y -= 10*mm
+    
+    # Клиент
+    c.setFont(font_name, 11)
+    c.drawString(40*mm, y, "КЛИЕНТ")
+    c.setFont(font_name, 10)
+    y -= 6*mm
+    c.drawString(40*mm, y, f"Имя: {order_data.get('name', 'н/д')}")
+    y -= 5*mm
+    c.drawString(40*mm, y, f"Комната: {order_data.get('room', 'н/д')}")
+    y -= 10*mm
+    
+    # Состав заказа
+    c.setFont(font_name, 11)
+    c.drawString(40*mm, y, "СОСТАВ ЗАКАЗА:")
+    c.setFont(font_name, 9)
+    y -= 6*mm
+    
+    items = order_data.get('items', [])
+    for item in items:
+        name = item['name']
+        qty = item.get('quantity', 1)
+        price = item['price']
+        c.drawString(40*mm, y, f"• {name} x{qty}")
+        c.drawRightString(width - 40*mm, y, f"{price} ₸")
+        y -= 5*mm
+    
+    # Линия
+    y -= 3*mm
+    c.line(40*mm, y, width - 40*mm, y)
+    y -= 7*mm
+    
+    # Итого
+    c.setFont(font_name, 12)
+    c.drawString(40*mm, y, "ИТОГО К ОПЛАТЕ:")
+    c.drawRightString(width - 40*mm, y, f"{order_data.get('total', 0)} ₸")
+    y -= 15*mm
+    
+    # Подписи
+    c.setFont(font_name, 10)
+    c.line(40*mm, y, width - 40*mm, y)
+    y -= 10*mm
+    
+    c.drawString(40*mm, y, "Подпись клиента: ___________________")
+    y -= 8*mm
+    c.drawString(40*mm, y, "Подпись официанта: ___________________")
+    y -= 8*mm
+    c.drawString(40*mm, y, "Дата выдачи: ___________________")
+    
+    c.save()
+    return pdf_path
+
+
 async def notify_admins_new_order(order_id: str, order_data: dict):
+    """Уведомление админов о новом заказе с PDF накладной"""
     items_text = "\n".join(
         f"• {item['name']} x{item.get('quantity', 1)} — {item['price']} ₸"
         for item in order_data.get("items", [])
     )
 
-    # корректно собираем контакт
     telegram_user_id = order_data.get("telegram_user_id")
     telegram_username = order_data.get("telegram_username")
 
@@ -406,15 +514,43 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
 
 💰 <b>Итого: {order_data.get('total')} ₸</b>
 🕐 {order_data.get('timestamp')}
-
-<i>Для изменения статуса: /update {order_id} &lt;статус&gt;</i>
 """.strip()
 
-    for admin_id in ADMIN_IDS:
+    # Генерируем PDF
+    try:
+        pdf_path = generate_receipt_pdf(order_id, order_data)
+        
+        for admin_id in ADMIN_IDS:
+            try:
+                # Отправляем сообщение
+                await bot.send_message(admin_id, admin_message)
+                
+                # Отправляем PDF
+                await bot.send_document(
+                    admin_id,
+                    document=FSInputFile(pdf_path),
+                    caption=f"📄 Накладная {order_id}"
+                )
+            except Exception as e:
+                logger.error(f"Ошибка отправки админу {admin_id}: {e}")
+        
+        # Удаляем временный файл
+        import os
         try:
-            await bot.send_message(admin_id, admin_message)
-        except Exception as e:
-            logger.error(f"Ошибка отправки админу {admin_id}: {e}")
+            os.unlink(pdf_path)
+        except:
+            pass
+            
+    except Exception as e:
+        logger.error(f"Ошибка генерации PDF: {e}")
+        # Если PDF не сгенерировался - отправляем хотя бы текст
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, admin_message)
+            except Exception as e:
+                logger.error(f"Ошибка отправки админу {admin_id}: {e}")
+
+
 
 async def notify_client_order_received(order_id: str, order_data: dict):
     telegram_username = order_data.get("telegram_username")
@@ -463,8 +599,7 @@ async def handle_new_order(request: web.Request) -> web.Response:
         return web.json_response(
             {"status": "error", "message": str(e)},
             status=500,
-            headers=headers,
-        )
+            headers=headers)
 
 
 
@@ -483,7 +618,7 @@ async def get_order_by_id(request: web.Request) -> web.Response:
         async with aiosqlite.connect(DB_FILE) as db:
             cursor = await db.execute(
                 "SELECT order_id, client_name, room, items, total, timestamp FROM orders WHERE order_id = ?",
-                (order_id,)
+                (order_id)
             )
             row = await cursor.fetchone()
         
@@ -601,13 +736,13 @@ async def cmd_stats(message: Message):
     async with aiosqlite.connect(DB_FILE) as db:
         # Всего заказов
         cursor = await db.execute(
-            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today,)
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today)
         )
         total_orders, total_sum = await cursor.fetchone()
         
         # По статусам
         cursor = await db.execute(
-            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today,)
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today)
         )
         statuses = await cursor.fetchall()
     
@@ -689,7 +824,7 @@ async def cmd_status(message: types.Message, command: CommandObject):
 
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(
-            "SELECT * FROM orders WHERE order_id = ?", (order_id,)
+            "SELECT * FROM orders WHERE order_id = ?", (order_id)
         )
         row = await cursor.fetchone()
 
@@ -733,7 +868,7 @@ async def notify_client_status_update(order_id: str, status: str):
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(
             "SELECT telegram_user_id, telegram_username FROM orders WHERE order_id = ?",
-            (order_id,)
+            (order_id)
         )
         row = await cursor.fetchone()
         
