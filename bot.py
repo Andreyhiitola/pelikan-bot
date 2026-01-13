@@ -346,13 +346,13 @@ async def show_admin_stats(callback: CallbackQuery):
     async with aiosqlite.connect(DB_FILE) as db:
         # Всего заказов
         cursor = await db.execute(
-            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today)
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today,)
         )
         total_orders, total_sum = await cursor.fetchone()
         
         # По статусам
         cursor = await db.execute(
-            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today)
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today,)
         )
         statuses = await cursor.fetchall()
     
@@ -764,13 +764,13 @@ async def cmd_stats(message: Message):
     async with aiosqlite.connect(DB_FILE) as db:
         # Всего заказов
         cursor = await db.execute(
-            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today)
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today,)
         )
         total_orders, total_sum = await cursor.fetchone()
         
         # По статусам
         cursor = await db.execute(
-            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today)
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today,)
         )
         statuses = await cursor.fetchall()
     
