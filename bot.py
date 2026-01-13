@@ -670,7 +670,7 @@ async def get_order_by_id(request: web.Request) -> web.Response:
         async with aiosqlite.connect(DB_FILE) as db:
             cursor = await db.execute(
                 "SELECT order_id, client_name, room, items, total, timestamp FROM orders WHERE order_id = ?",
-                (order_id)
+                (order_id,)
             )
             row = await cursor.fetchone()
         
@@ -852,7 +852,7 @@ async def cmd_status(message: types.Message, command: CommandObject):
 
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(
-            "SELECT * FROM orders WHERE order_id = ?", (order_id)
+            "SELECT * FROM orders WHERE order_id = ?", (order_id,)
         )
         row = await cursor.fetchone()
 
@@ -896,7 +896,7 @@ async def notify_client_status_update(order_id: str, status: str):
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(
             "SELECT telegram_user_id, telegram_username FROM orders WHERE order_id = ?",
-            (order_id)
+            (order_id,)
         )
         row = await cursor.fetchone()
         
