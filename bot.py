@@ -327,7 +327,7 @@ async def cmd_orders(message: Message):
     
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(
-            "SELECT order_id, client_name, room, status, total FROM orders WHERE status != 'выдан' ORDER BY created_at DESC LIMIT 10"
+            "SELECT order_id, client_name, room, status, total, items FROM orders WHERE status != 'выдан' ORDER BY created_at DESC LIMIT 10"
         )
         rows = await cursor.fetchall()
     
@@ -335,10 +335,20 @@ async def cmd_orders(message: Message):
         await message.answer("📋 Активных заказов нет")
         return
     
-    for order_id, name, room, status, total in rows:
+    for order_id, name, room, status, total, items_json in rows:
         emoji = {"принят": "🟡", "готовится": "🟠", "готов": "🟢"}.get(status, "⚪")
         
-        text = f"{emoji} <b>#{order_id}</b>\n👤 {name} | 🏨 {room}\n💰 {total}₸\n📊 Статус: {status}"
+        # Парсим список блюд
+        try:
+            items = json.loads(items_json)
+            items_text = "\n".join([
+                f"• {item['name']} x{item.get('quantity', 1)} - {item['price']}₸"
+                for item in items
+            ])
+        except:
+            items_text = "Состав заказа недоступен"
+        
+        text = f"{emoji} <b>#{order_id}</b>\n👤 {name} | 🏨 {room}\n\n🍽️ Заказ:\n{items_text}\n\n💰 Итого: {total}₸\n📊 Статус: {status}"
         
         # Создаём кнопки
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
