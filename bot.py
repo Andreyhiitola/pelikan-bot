@@ -71,6 +71,7 @@ async def init_db():
                 total INTEGER,
                 status TEXT DEFAULT 'принят',
                 timestamp TEXT,
+                pdf_path TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -177,7 +178,7 @@ async def show_admin_orders(callback: CallbackQuery):
     
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute(
-            "SELECT order_id, client_name, room, status, total, items FROM orders WHERE status != 'выдан' ORDER BY created_at DESC LIMIT 10"
+            "SELECT order_id, client_name, room, status, total, items, pdf_path FROM orders WHERE status != 'выдан' ORDER BY created_at DESC LIMIT 10"
         )
         rows = await cursor.fetchall()
     
@@ -185,7 +186,7 @@ async def show_admin_orders(callback: CallbackQuery):
         await callback.message.answer("📋 Активных заказов нет")
         return
     
-    for order_id, name, room, status, total, items_json in rows:
+    for order_id, name, room, status, total, items_json, pdf_path in rows:
         emoji = {"принят": "🟡", "готовится": "🟠", "готов": "🟢"}.get(status, "⚪")
         
         # Парсим список блюд
@@ -200,7 +201,7 @@ async def show_admin_orders(callback: CallbackQuery):
         
         text = f"{emoji} <b>#{order_id}</b>\n👤 {name} | 🏨 {room}\n\n🍽️ Заказ:\n{items_text}\n\n💰 Итого: {total}₸\n📊 Статус: {status}"
         
-        # Создаём кнопки
+        # Создаём кнопки с PDF
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="⏳ Готовится", callback_data=f"status:{order_id}:готовится"),
@@ -208,6 +209,7 @@ async def show_admin_orders(callback: CallbackQuery):
             ],
             [
                 InlineKeyboardButton(text="🎉 Выдан", callback_data=f"status:{order_id}:выдан"),
+                InlineKeyboardButton(text="📄 PDF", callback_data=f"pdf:{order_id}"),
             ]
         ])
         
@@ -271,6 +273,52 @@ async def handle_status_button(callback: CallbackQuery):
         pass
     
     await callback.answer(f"✅ Статус изменён на '{new_status}'")
+
+
+
+@dp.callback_query(F.data.startswith("pdf:"))
+async def handle_pdf_button(callback: CallbackQuery):
+    """Отправка PDF накладной"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    # Парсим order_id из callback_data
+    order_id = callback.data.split(":")[1]
+    
+    # Получаем путь к PDF из базы
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT pdf_path FROM orders WHERE order_id = ?",
+            (order_id,)
+        )
+        row = await cursor.fetchone()
+    
+    if not row or not row[0]:
+        await callback.answer("❌ PDF не найден", show_alert=True)
+        return
+    
+    pdf_path = row[0]
+    
+    # Проверяем существование файла
+    import os
+    if not os.path.exists(pdf_path):
+        await callback.answer("❌ Файл не найден на диске", show_alert=True)
+        return
+    
+    try:
+        # Отправляем PDF
+        await bot.send_document(
+            callback.from_user.id,
+            document=FSInputFile(pdf_path),
+            caption=f"📄 Накладная {order_id}"
+        )
+        await callback.answer("✅ PDF отправлен!")
+    except Exception as e:
+        logger.error(f"Ошибка отправки PDF: {e}")
+        await callback.answer("❌ Ошибка отправки", show_alert=True)
+
+
 
 
 
@@ -359,11 +407,14 @@ async def save_order(order_data: dict) -> dict:
 
     try:
         async with aiosqlite.connect(DB_FILE) as db:
+            # Генерируем PDF
+            pdf_path = generate_receipt_pdf(order_id, order_data)
+            
             await db.execute(
                 """
                 INSERT INTO orders 
-                (order_id, client_name, room, telegram_user_id, telegram_username, items, total, timestamp, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'принят')
+                (order_id, client_name, room, telegram_user_id, telegram_username, items, total, timestamp, pdf_path, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'принят')
                 """,
                 (
                     order_id,
@@ -378,6 +429,9 @@ async def save_order(order_data: dict) -> dict:
 
         logger.info(f"Заказ #{order_id} сохранён")
 
+        # Добавляем pdf_path в order_data
+        order_data['pdf_path'] = pdf_path
+        
         await notify_admins_new_order(order_id, order_data)
         await notify_client_order_received(order_id, order_data)
 
@@ -392,10 +446,13 @@ async def save_order(order_data: dict) -> dict:
 
 def generate_receipt_pdf(order_id: str, order_data: dict) -> str:
     """Генерирует PDF накладную и возвращает путь к файлу"""
-    # Создаём временный файл
-    pdf_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
-    pdf_path = pdf_file.name
-    pdf_file.close()
+    # Создаём директорию для PDF
+    pdf_dir = '/app/data/receipts'
+    import os
+    os.makedirs(pdf_dir, exist_ok=True)
+    
+    # Путь к файлу
+    pdf_path = f"{pdf_dir}/{order_id}.pdf"
     
     # Создаём PDF
     c = canvas.Canvas(pdf_path, pagesize=A4)
@@ -516,39 +573,23 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
 🕐 {order_data.get('timestamp')}
 """.strip()
 
-    # Генерируем PDF
-    try:
-        pdf_path = generate_receipt_pdf(order_id, order_data)
-        
-        for admin_id in ADMIN_IDS:
-            try:
-                # Отправляем сообщение
-                await bot.send_message(admin_id, admin_message)
-                
-                # Отправляем PDF
+    # Получаем путь к PDF из order_data
+    pdf_path = order_data.get('pdf_path')
+    
+    for admin_id in ADMIN_IDS:
+        try:
+            # Отправляем сообщение
+            await bot.send_message(admin_id, admin_message)
+            
+            # Отправляем PDF если он есть
+            if pdf_path:
                 await bot.send_document(
                     admin_id,
                     document=FSInputFile(pdf_path),
                     caption=f"📄 Накладная {order_id}"
                 )
-            except Exception as e:
-                logger.error(f"Ошибка отправки админу {admin_id}: {e}")
-        
-        # Удаляем временный файл
-        import os
-        try:
-            os.unlink(pdf_path)
-        except:
-            pass
-            
-    except Exception as e:
-        logger.error(f"Ошибка генерации PDF: {e}")
-        # Если PDF не сгенерировался - отправляем хотя бы текст
-        for admin_id in ADMIN_IDS:
-            try:
-                await bot.send_message(admin_id, admin_message)
-            except Exception as e:
-                logger.error(f"Ошибка отправки админу {admin_id}: {e}")
+        except Exception as e:
+            logger.error(f"Ошибка отправки админу {admin_id}: {e}")
 
 
 
