@@ -201,6 +201,67 @@ async def show_admin_orders(callback: CallbackQuery):
         await callback.message.answer(text, reply_markup=keyboard)
 
 
+# ==================== ОБРАБОТЧИК КНОПОК СТАТУСА ====================
+
+@dp.callback_query(F.data.startswith("status:"))
+async def handle_status_button(callback: CallbackQuery):
+    """Обработка нажатия кнопки изменения статуса"""
+    if callback.from_user.id not in ADMIN_IDS:
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    # Парсим данные: status:ORD123456:готовится
+    parts = callback.data.split(":")
+    order_id = parts[1]
+    new_status = parts[2]
+    
+    # Обновляем статус в базе
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "UPDATE orders SET status = ? WHERE order_id = ?",
+            (new_status, order_id)
+        )
+        await db.commit()
+        
+        if cursor.rowcount == 0:
+            await callback.answer("❌ Заказ не найден", show_alert=True)
+            return
+    
+    # Уведомляем клиента
+    await notify_client_status_update(order_id, new_status)
+    
+    # Обновляем сообщение
+    emoji = {"готовится": "🟠", "готов": "🟢", "выдан": "🎉"}.get(new_status, "⚪")
+    
+    try:
+        # Убираем кнопки если статус "выдан"
+        new_markup = None if new_status == "выдан" else callback.message.reply_markup
+        
+        # Обновляем текст
+        old_text = callback.message.text or callback.message.caption
+        new_text = old_text.split('\n')
+        
+        # Меняем эмодзи и статус
+        if new_text:
+            new_text[0] = f"{emoji} <b>#{order_id}</b>"
+            for i, line in enumerate(new_text):
+                if "📊 Статус:" in line:
+                    new_text[i] = f"📊 Статус: {new_status}"
+                    break
+        
+        await callback.message.edit_text(
+            "\n".join(new_text),
+            reply_markup=new_markup,
+            parse_mode="HTML"
+        )
+    except:
+        pass
+    
+    await callback.answer(f"✅ Статус изменён на '{new_status}'")
+
+
+
+
 @dp.callback_query(F.data == "admin_stats")
 async def show_admin_stats(callback: CallbackQuery):
     """Показать статистику за день"""
@@ -351,7 +412,17 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
 
     for admin_id in ADMIN_IDS:
         try:
-            await bot.send_message(admin_id, admin_message)
+            # Кнопка печати
+            print_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🖨️ Печать накладной",
+                        url=f"https://pelikan-alakol-site-v2.pages.dev/print_receipt.html?order={order_id}"
+                    )
+                ]
+            ])
+            
+            await bot.send_message(admin_id, admin_message, reply_markup=print_keyboard)
         except Exception as e:
             logger.error(f"Ошибка отправки админу {admin_id}: {e}")
 
