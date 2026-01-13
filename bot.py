@@ -155,27 +155,89 @@ async def show_admin_panel(callback: CallbackQuery):
 
 @dp.callback_query(F.data == "admin_orders")
 async def show_admin_orders(callback: CallbackQuery):
-    """Показать активные заказы (вызов команды /orders)"""
-    logger.info(f"admin_orders: user_id={callback.from_user.id}, ADMIN_IDS={ADMIN_IDS}")
+    """Показать активные заказы с кнопками"""
     if callback.from_user.id not in ADMIN_IDS:
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
     await callback.answer()
-    # Вызываем функцию /orders
-    await cmd_orders(callback.message)
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT order_id, client_name, room, status, total, items FROM orders WHERE status != 'выдан' ORDER BY created_at DESC LIMIT 10"
+        )
+        rows = await cursor.fetchall()
+    
+    if not rows:
+        await callback.message.answer("📋 Активных заказов нет")
+        return
+    
+    for order_id, name, room, status, total, items_json in rows:
+        emoji = {"принят": "🟡", "готовится": "🟠", "готов": "🟢"}.get(status, "⚪")
+        
+        # Парсим список блюд
+        try:
+            items = json.loads(items_json)
+            items_text = "\n".join([
+                f"• {item['name']} x{item.get('quantity', 1)} - {item['price']}₸"
+                for item in items
+            ])
+        except:
+            items_text = "Состав заказа недоступен"
+        
+        text = f"{emoji} <b>#{order_id}</b>\n👤 {name} | 🏨 {room}\n\n🍽️ Заказ:\n{items_text}\n\n💰 Итого: {total}₸\n📊 Статус: {status}"
+        
+        # Создаём кнопки
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⏳ Готовится", callback_data=f"status:{order_id}:готовится"),
+                InlineKeyboardButton(text="✅ Готов", callback_data=f"status:{order_id}:готов"),
+            ],
+            [
+                InlineKeyboardButton(text="🎉 Выдан", callback_data=f"status:{order_id}:выдан"),
+            ]
+        ])
+        
+        await callback.message.answer(text, reply_markup=keyboard)
 
 
 @dp.callback_query(F.data == "admin_stats")
 async def show_admin_stats(callback: CallbackQuery):
-    """Показать статистику (вызов команды /stats)"""
+    """Показать статистику за день"""
     if callback.from_user.id not in ADMIN_IDS:
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
     await callback.answer()
-    # Вызываем функцию /stats
-    await cmd_stats(callback.message)
+    
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        # Всего заказов
+        cursor = await db.execute(
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", (today,)
+        )
+        total_orders, total_sum = await cursor.fetchone()
+        
+        # По статусам
+        cursor = await db.execute(
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status", (today,)
+        )
+        statuses = await cursor.fetchall()
+    
+    status_text = "\n".join([f"• {s[0]}: {s[1]}" for s in statuses])
+    
+    text = f"""
+📊 <b>Статистика за {today}</b>
+
+📦 Всего заказов: {total_orders or 0}
+💰 Сумма: {total_sum or 0}₸
+
+Статусы:
+{status_text or 'нет данных'}
+"""
+    
+    await callback.message.answer(text)
 
 
 @dp.callback_query(F.data == "back_to_menu")
