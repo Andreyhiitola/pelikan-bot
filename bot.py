@@ -412,17 +412,7 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
 
     for admin_id in ADMIN_IDS:
         try:
-            # Кнопка печати
-            print_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="🖨️ Печать накладной",
-                        url=f"https://pelikan-alakol-site-v2.pages.dev/print_receipt.html?order={order_id}"
-                    )
-                ]
-            ])
-            
-            await bot.send_message(admin_id, admin_message, reply_markup=print_keyboard)
+            await bot.send_message(admin_id, admin_message)
         except Exception as e:
             logger.error(f"Ошибка отправки админу {admin_id}: {e}")
 
