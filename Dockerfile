@@ -5,6 +5,14 @@ LABEL description="Telegram bot for Pelikan Alakol Hotel"
 
 WORKDIR /app
 
+# Устанавливаем шрифты для кириллицы в PDF
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    fonts-dejavu \
+    fonts-dejavu-core \
+    fonts-dejavu-extra && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -14,10 +22,8 @@ COPY bot.py .
 
 RUN mkdir -p /app/data
 
-# 🔹 Порт, который слушает aiohttp внутри контейнера
 ENV WEBHOOK_PORT=8080
 
-# 🔹 Документация для Docker / compose
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
