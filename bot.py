@@ -433,7 +433,9 @@ async def save_order(order_data: dict) -> dict:
                     order_data.get("telegram_username"),
                     json.dumps(order_data.get("items", []), ensure_ascii=False),
                     order_data.get("total"),
-                    order_data.get("timestamp")))
+                    order_data.get("timestamp"),
+                    pdf_path,
+                ))
             await db.commit()
 
         logger.info(f"Заказ #{order_id} сохранён")
