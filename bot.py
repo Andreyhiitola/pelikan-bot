@@ -272,10 +272,61 @@ async def handle_new_order(request: web.Request) -> web.Response:
         )
 
 
+
+
+async def get_order_by_id(request: web.Request) -> web.Response:
+    """API для получения заказа по ID (для страницы печати)"""
+    origin = request.headers.get("Origin")
+    headers = cors_headers(origin)
+    
+    if request.method == "OPTIONS":
+        return web.Response(status=204, headers=headers)
+    
+    try:
+        order_id = request.match_info.get('order_id')
+        
+        async with aiosqlite.connect(DB_FILE) as db:
+            cursor = await db.execute(
+                "SELECT order_id, client_name, room, items, total, timestamp FROM orders WHERE order_id = ?",
+                (order_id,)
+            )
+            row = await cursor.fetchone()
+        
+        if not row:
+            return web.json_response(
+                {"error": "Заказ не найден"},
+                status=404,
+                headers=headers
+            )
+        
+        order_id, client_name, room, items_json, total, timestamp = row
+        
+        order_data = {
+            "order_id": order_id,
+            "client_name": client_name,
+            "room": room,
+            "items": json.loads(items_json),
+            "total": total,
+            "timestamp": timestamp
+        }
+        
+        return web.json_response(order_data, headers=headers)
+        
+    except Exception as e:
+        logger.error(f"Ошибка получения заказа: {e}")
+        return web.json_response(
+            {"error": str(e)},
+            status=500,
+            headers=headers
+        )
+
+
 async def start_webhook_server():
     app = web.Application()
     app.router.add_route("POST", "/api/order", handle_new_order)
     app.router.add_route("OPTIONS", "/api/order", handle_new_order)
+    app.router.add_route("GET", "/api/order/{order_id}", get_order_by_id)
+    app.router.add_route("OPTIONS", "/api/order/{order_id}", get_order_by_id)
 
     runner = web.AppRunner(app)
     await runner.setup()
