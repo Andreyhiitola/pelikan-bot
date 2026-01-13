@@ -76,6 +76,15 @@ async def init_db():
             )
         """)
         await db.commit()
+        
+        # Миграция: добавляем pdf_path если его нет
+        try:
+            await db.execute("ALTER TABLE orders ADD COLUMN pdf_path TEXT")
+            await db.commit()
+            logger.info("Миграция: добавлена колонка pdf_path")
+        except:
+            pass  # Колонка уже существует
+            
     logger.info("База данных готова")
 
 
