@@ -156,6 +156,7 @@ async def show_admin_panel(callback: CallbackQuery):
 @dp.callback_query(F.data == "admin_orders")
 async def show_admin_orders(callback: CallbackQuery):
     """Показать активные заказы (вызов команды /orders)"""
+    logger.info(f"admin_orders: user_id={callback.from_user.id}, ADMIN_IDS={ADMIN_IDS}")
     if callback.from_user.id not in ADMIN_IDS:
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
