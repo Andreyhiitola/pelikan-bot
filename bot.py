@@ -186,17 +186,28 @@ async def show_admin_panel(callback: CallbackQuery):
     
     text = "👨‍💼 <b>АДМИН-ПАНЕЛЬ</b>\n\nУправление заказами и статистика"
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="📋 Активные заказы", callback_data="admin_orders")
-        ],
-        [
-            InlineKeyboardButton(text="📊 Статистика за день", callback_data="admin_stats")
-        ],
-        [
-            InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")
-        ]
-    ])
+    user_id = callback.from_user.id
+    buttons = []
+    
+    # Все роли видят активные заказы
+    if has_permission(user_id, "view_orders"):
+        buttons.append([InlineKeyboardButton(text="📋 Активные заказы", callback_data="admin_orders")])
+    
+    # Менеджеры и админы видят статистику
+    if has_permission(user_id, "stats"):
+        buttons.append([InlineKeyboardButton(text="📊 Статистика за день", callback_data="admin_stats")])
+    
+    # Менеджеры и админы видят экспорт
+    if has_permission(user_id, "export"):
+        buttons.append([InlineKeyboardButton(text="📥 Экспорт заказов", callback_data="admin_export")])
+    
+    # Только админы видят очистку
+    if has_permission(user_id, "cleanup"):
+        buttons.append([InlineKeyboardButton(text="🗑️ Очистка (>30 дней)", callback_data="admin_cleanup")])
+    
+    buttons.append([InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()
