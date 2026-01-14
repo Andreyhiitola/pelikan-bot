@@ -152,8 +152,8 @@ async def cmd_start(message: Message):
         ],
     ]
     
-    # Добавляем админскую кнопку для админов
-    if message.from_user.id in ADMIN_IDS:
+    # Добавляем админскую кнопку для всех с правами
+    if has_permission(message.from_user.id, "admin_panel"):
         buttons.append([
             InlineKeyboardButton(
                 text="👨‍💼 Админ-панель",
