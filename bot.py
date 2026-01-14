@@ -13,6 +13,7 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import black
+from PIL import Image, ImageDraw, ImageFont
 import tempfile
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import mm
@@ -247,7 +248,7 @@ async def show_admin_orders(callback: CallbackQuery):
         
         text = f"{emoji} <b>#{order_id}</b>\n👤 {name} | 🏨 {room}\n\n🍽️ Заказ:\n{items_text}\n\n💰 Итого: {total}₸\n📊 Статус: {status}"
         
-        # Создаём кнопки с PDF
+        # Создаём кнопки с PDF и фото
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
             [
                 InlineKeyboardButton(text="⏳ Готовится", callback_data=f"status:{order_id}:готовится"),
@@ -255,6 +256,9 @@ async def show_admin_orders(callback: CallbackQuery):
             ],
             [
                 InlineKeyboardButton(text="🎉 Выдан", callback_data=f"status:{order_id}:выдан"),
+            ],
+            [
+                InlineKeyboardButton(text="📸 Фото", callback_data=f"photo:{order_id}"),
                 InlineKeyboardButton(text="📄 PDF", callback_data=f"pdf:{order_id}"),
             ]
         ])
@@ -363,6 +367,63 @@ async def handle_pdf_button(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка отправки PDF: {e}")
         await callback.answer("❌ Ошибка отправки", show_alert=True)
+
+
+
+@dp.callback_query(F.data.startswith("photo:"))
+async def handle_photo_button(callback: CallbackQuery):
+    """Отправка фото накладной"""
+    if not has_permission(callback.from_user.id, "view_orders"):
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    # Парсим order_id из callback_data
+    order_id = callback.data.split(":")[1]
+    
+    # Получаем данные заказа из базы
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT client_name, room, items, total, timestamp FROM orders WHERE order_id = ?",
+            (order_id,)
+        )
+        row = await cursor.fetchone()
+    
+    if not row:
+        await callback.answer("❌ Заказ не найден", show_alert=True)
+        return
+    
+    name, room, items_json, total, timestamp = row
+    
+    # Формируем order_data
+    order_data = {
+        'name': name,
+        'room': room,
+        'items': json.loads(items_json),
+        'total': total,
+        'timestamp': timestamp
+    }
+    
+    try:
+        # Генерируем изображение
+        img_path = generate_receipt_image(order_id, order_data)
+        
+        # Проверяем существование файла
+        import os
+        if not os.path.exists(img_path):
+            await callback.answer("❌ Файл не найден", show_alert=True)
+            return
+        
+        # Отправляем фото
+        await bot.send_photo(
+            callback.from_user.id,
+            photo=FSInputFile(img_path),
+            caption=f"📸 Накладная {order_id}"
+        )
+        await callback.answer("✅ Фото отправлено!")
+    except Exception as e:
+        logger.error(f"Ошибка отправки фото: {e}")
+        await callback.answer("❌ Ошибка отправки", show_alert=True)
+
 
 
 
@@ -858,6 +919,129 @@ def generate_receipt_pdf(order_id: str, order_data: dict) -> str:
     
     c.save()
     return pdf_path
+
+
+
+def generate_receipt_image(order_id: str, order_data: dict) -> str:
+    """Генерирует PNG изображение накладной и возвращает путь к файлу"""
+    # Создаём директорию для изображений
+    import os
+    img_dir = '/app/data/receipts'
+    os.makedirs(img_dir, exist_ok=True)
+    
+    # Путь к файлу
+    img_path = f"{img_dir}/{order_id}.png"
+    
+    # Размеры изображения
+    width = 600
+    padding = 30
+    line_height = 35
+    
+    # Считаем высоту в зависимости от количества позиций
+    items = order_data.get('items', [])
+    num_items = len(items)
+    height = 400 + (num_items * line_height) + 150
+    
+    # Создаём изображение
+    img = Image.new('RGB', (width, height), color='white')
+    draw = ImageDraw.Draw(img)
+    
+    # Пытаемся загрузить шрифт
+    try:
+        font_title = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 32)
+        font_large = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 24)
+        font_normal = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 20)
+        font_small = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 18)
+    except:
+        # Fallback на дефолтный шрифт
+        font_title = ImageFont.load_default()
+        font_large = ImageFont.load_default()
+        font_normal = ImageFont.load_default()
+        font_small = ImageFont.load_default()
+    
+    y = padding
+    
+    # Заголовок
+    draw.text((width//2, y), "ПЕЛИКАН АЛАКОЛЬ", fill='#2C3E50', font=font_title, anchor='mt')
+    y += 50
+    
+    draw.text((width//2, y), "Заказ из бара", fill='#34495E', font=font_normal, anchor='mt')
+    y += 40
+    
+    # Линия
+    draw.line([(padding, y), (width - padding, y)], fill='#BDC3C7', width=2)
+    y += 25
+    
+    # Номер заказа
+    draw.text((padding, y), f"Заказ №: {order_id}", fill='#2C3E50', font=font_large)
+    y += 35
+    
+    # Дата
+    from datetime import datetime
+    try:
+        dt = datetime.fromisoformat(order_data.get('timestamp', '').replace('Z', '+00:00'))
+        date_str = dt.strftime('%d.%m.%Y %H:%M')
+    except:
+        date_str = order_data.get('timestamp', 'н/д')
+    
+    draw.text((padding, y), f"Дата: {date_str}", fill='#7F8C8D', font=font_small)
+    y += 45
+    
+    # Клиент
+    draw.text((padding, y), "КЛИЕНТ", fill='#E74C3C', font=font_large)
+    y += 35
+    
+    draw.text((padding, y), f"Имя: {order_data.get('name', 'н/д')}", fill='#2C3E50', font=font_normal)
+    y += 30
+    
+    draw.text((padding, y), f"Комната: {order_data.get('room', 'н/д')}", fill='#2C3E50', font=font_normal)
+    y += 45
+    
+    # Состав заказа
+    draw.text((padding, y), "СОСТАВ ЗАКАЗА:", fill='#E74C3C', font=font_large)
+    y += 35
+    
+    for item in items:
+        name = item['name']
+        qty = item.get('quantity', 1)
+        price = item['price']
+        
+        item_text = f"• {name} x{qty}"
+        price_text = f"{price} ₸"
+        
+        draw.text((padding + 10, y), item_text, fill='#2C3E50', font=font_normal)
+        draw.text((width - padding, y), price_text, fill='#27AE60', font=font_normal, anchor='rt')
+        y += line_height
+    
+    y += 15
+    
+    # Линия
+    draw.line([(padding, y), (width - padding, y)], fill='#BDC3C7', width=2)
+    y += 25
+    
+    # Итого
+    total_text = "ИТОГО К ОПЛАТЕ:"
+    total_amount = f"{order_data.get('total', 0)} ₸"
+    
+    draw.text((padding, y), total_text, fill='#2C3E50', font=font_large)
+    draw.text((width - padding, y), total_amount, fill='#E74C3C', font=font_large, anchor='rt')
+    y += 60
+    
+    # Подписи (тонкими линиями)
+    draw.line([(padding, y), (width - padding, y)], fill='#BDC3C7', width=1)
+    y += 30
+    
+    draw.text((padding, y), "Подпись клиента:", fill='#7F8C8D', font=font_small)
+    y += 30
+    
+    draw.text((padding, y), "Подпись официанта:", fill='#7F8C8D', font=font_small)
+    
+    # Сохраняем
+    img.save(img_path, 'PNG', quality=95)
+    
+    return img_path
+
+
 
 
 async def notify_admins_new_order(order_id: str, order_data: dict):
