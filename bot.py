@@ -65,7 +65,7 @@ def has_permission(user_id: int, permission: str) -> bool:
     permissions = {
         "admin": ["view_orders", "change_status", "export", "stats", "cleanup", "admin_panel"],
         "manager": ["view_orders", "export", "stats", "admin_panel"],
-        "waiter": ["view_orders", "change_status"]
+        "waiter": ["view_orders", "change_status", "admin_panel"]
     }
     
     return role and permission in permissions.get(role, [])
