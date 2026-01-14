@@ -180,7 +180,7 @@ async def cmd_start(message: Message):
 @dp.callback_query(F.data == "admin_panel")
 async def show_admin_panel(callback: CallbackQuery):
     """Показать админ-панель"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "admin_panel"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
