@@ -42,7 +42,33 @@ from aiogram.types import (
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+# Система ролей: admin (все права), manager (просмотр + экспорт), waiter (только статусы)
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "123456789").split(",")))
+MANAGER_IDS = list(map(int, os.getenv("MANAGER_IDS", "").split(","))) if os.getenv("MANAGER_IDS") else []
+WAITER_IDS = list(map(int, os.getenv("WAITER_IDS", "").split(","))) if os.getenv("WAITER_IDS") else []
+
+def get_user_role(user_id: int) -> str:
+    """Определяет роль пользователя: admin, manager, waiter или None"""
+    if user_id in ADMIN_IDS:
+        return "admin"
+    elif user_id in MANAGER_IDS:
+        return "manager"
+    elif user_id in WAITER_IDS:
+        return "waiter"
+    return None
+
+def has_permission(user_id: int, permission: str) -> bool:
+    """Проверяет есть ли у пользователя разрешение"""
+    role = get_user_role(user_id)
+    
+    # Права для каждой роли
+    permissions = {
+        "admin": ["view_orders", "change_status", "export", "stats", "cleanup", "admin_panel"],
+        "manager": ["view_orders", "export", "stats", "admin_panel"],
+        "waiter": ["view_orders", "change_status"]
+    }
+    
+    return role and permission in permissions.get(role, [])
 DB_FILE = os.getenv("DB_FILE", "orders.db")
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "8080"))
 ALLOWED_ORIGIN = os.getenv(
@@ -179,7 +205,7 @@ async def show_admin_panel(callback: CallbackQuery):
 @dp.callback_query(F.data == "admin_orders")
 async def show_admin_orders(callback: CallbackQuery):
     """Показать активные заказы с кнопками"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "view_orders"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
@@ -230,7 +256,7 @@ async def show_admin_orders(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("status:"))
 async def handle_status_button(callback: CallbackQuery):
     """Обработка нажатия кнопки изменения статуса"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "change_status"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
@@ -288,7 +314,7 @@ async def handle_status_button(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("pdf:"))
 async def handle_pdf_button(callback: CallbackQuery):
     """Отправка PDF накладной"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "view_orders"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
@@ -332,7 +358,7 @@ async def handle_pdf_button(callback: CallbackQuery):
 @dp.callback_query(F.data == "admin_export")
 async def show_export_menu(callback: CallbackQuery):
     """Меню экспорта заказов"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "export"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
@@ -356,7 +382,7 @@ async def show_export_menu(callback: CallbackQuery):
 @dp.callback_query(F.data.startswith("export:"))
 async def handle_export(callback: CallbackQuery):
     """Экспорт заказов в CSV"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "export"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
@@ -473,7 +499,7 @@ async def handle_export(callback: CallbackQuery):
 @dp.callback_query(F.data == "admin_cleanup")
 async def confirm_cleanup(callback: CallbackQuery):
     """Подтверждение очистки старых данных"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "cleanup"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
@@ -517,7 +543,7 @@ async def confirm_cleanup(callback: CallbackQuery):
 @dp.callback_query(F.data == "cleanup_confirm")
 async def execute_cleanup(callback: CallbackQuery):
     """Выполнение очистки с архивацией"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "cleanup"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
@@ -600,7 +626,7 @@ async def execute_cleanup(callback: CallbackQuery):
 @dp.callback_query(F.data == "admin_stats")
 async def show_admin_stats(callback: CallbackQuery):
     """Показать статистику за день"""
-    if callback.from_user.id not in ADMIN_IDS:
+    if not has_permission(callback.from_user.id, "stats"):
         await callback.answer("❌ У вас нет прав", show_alert=True)
         return
     
