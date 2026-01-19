@@ -26,7 +26,7 @@ from aiogram.types import (
     FSInputFile)
 
 from reviews_handler import reviews_router
-
+from navigation_handler import router as navigation_router
 # ==================== НАСТРОЙКИ ====================
 
 load_dotenv()
@@ -153,10 +153,16 @@ async def cmd_start(message: Message):
         ],
     ]
     
-    buttons.append([
+   buttons.append([
         InlineKeyboardButton(
             text="⭐ Оставить отзыв",
             callback_data="review_start")
+    ])
+    
+    buttons.append([
+        InlineKeyboardButton(
+            text="🗺️ Как добраться",
+            callback_data="navigation")
     ])
     
     if has_permission(message.from_user.id, "admin_panel"):
@@ -164,8 +170,7 @@ async def cmd_start(message: Message):
             InlineKeyboardButton(
                 text="👨‍💼 Админ-панель",
                 callback_data="admin_panel")
-        ])
-    
+        ])    
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     photo_url = "https://pelikan-alakol-site-v2.pages.dev/img/welcome-beach.jpg"
 
@@ -174,7 +179,6 @@ async def cmd_start(message: Message):
     except Exception as e:
         logger.warning(f"Фото не загрузилось: {e}")
         await message.answer(caption, reply_markup=keyboard)
-
 
 # ==================== АДМИН-ПАНЕЛЬ ====================
 
@@ -947,6 +951,7 @@ async def start_webhook_server():
 
 # ==================== MAIN ====================
 
+# ==================== НАВИГАЦИЯ ====================
 async def main():
     await init_db()
     
@@ -957,10 +962,19 @@ async def main():
             pass
     
     dp.include_router(reviews_router)
-    
+    dp.include_router(navigation_router)
     asyncio.create_task(start_webhook_server())
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+# ==================== НАВИГАЦИЯ ====================
+
+@dp.callback_query(F.data == "navigation")
+async def handle_navigation_callback(callback: CallbackQuery):
+    """Обработка кнопки 'Как добраться' (callback)"""
+    from navigation_handler import cmd_navigation
+    await cmd_navigation(callback)
+
