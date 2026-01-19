@@ -71,3 +71,8 @@ dist/
 # Documentation drafts (keep only final docs)
 START_HERE.md
 README_POLLING.md
+__pycache__/
+*.pyc
+*.backup
+*.broken
+sha256:*
