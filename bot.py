@@ -15,6 +15,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.colors import black
 from PIL import Image, ImageDraw, ImageFont
 import tempfile
+import shutil
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -204,6 +205,8 @@ async def show_admin_panel(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()
+
+
 # ==================== КОМАНДЫ АДМИН-ПАНЕЛИ ====================
 
 @dp.message(Command("admin_panel"))
@@ -246,14 +249,12 @@ async def cmd_stats(message: Message):
     today = date.today().isoformat()
     
     async with aiosqlite.connect(DB_FILE) as db:
-        # Количество заказов за день
         cursor = await db.execute(
             "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", 
             (today,)
         )
         count, total_sum = await cursor.fetchone()
         
-        # По статусам
         cursor = await db.execute(
             "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status",
             (today,)
@@ -270,8 +271,37 @@ async def cmd_stats(message: Message):
 📋 По статусам:
 {status_text}
 """
-    
     await message.answer(text)
+
+
+@dp.message(Command("backup"))
+async def cmd_backup(message: Message):
+    """Скачать бэкап базы данных (только для админов)"""
+    if message.from_user.id not in ADMIN_IDS:
+        await message.answer("❌ Недостаточно прав")
+        return
+    
+    try:
+        backup_name = f"orders_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+        backup_path = f"/tmp/{backup_name}"
+        
+        await message.answer("⏳ Создаю бэкап...")
+        
+        shutil.copy(DB_FILE, backup_path)
+        
+        file = FSInputFile(backup_path)
+        await message.answer_document(
+            document=file,
+            caption=f"📦 <b>Бэкап базы данных</b>\n\n"
+                    f"📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
+                    f"💾 Размер: {os.path.getsize(backup_path) / 1024:.1f} KB"
+        )
+        
+        os.remove(backup_path)
+        
+    except Exception as e:
+        await message.answer(f"❌ Ошибка создания бэкапа: {e}")
+        logger.error(f"Ошибка бэкапа: {e}")
 
 
 @dp.callback_query(F.data == "admin_stats")
@@ -344,7 +374,6 @@ async def export_orders(callback: CallbackQuery):
         await callback.message.answer("📭 Нет заказов за сегодня")
         return
     
-    # Создаём CSV
     output = StringIO()
     writer = csv.writer(output)
     writer.writerow(['ID', 'Клиент', 'Комната', 'Сумма', 'Статус', 'Дата'])
@@ -359,11 +388,9 @@ async def export_orders(callback: CallbackQuery):
             order['created_at']
         ])
     
-    # Сохраняем файл
     filename = f"orders_{today}.csv"
     csv_path = f"/app/data/exports/{filename}"
     
-    import os
     os.makedirs("/app/data/exports", exist_ok=True)
     
     with open(csv_path, 'w', encoding='utf-8') as f:
@@ -386,7 +413,6 @@ async def cleanup_old_orders(callback: CallbackQuery):
     await callback.answer()
     
     async with aiosqlite.connect(DB_FILE) as db:
-        # Удаляем заказы старше 30 дней
         cursor = await db.execute(
             "DELETE FROM orders WHERE created_at < datetime('now', '-30 days')"
         )
@@ -400,10 +426,13 @@ async def cleanup_old_orders(callback: CallbackQuery):
             [InlineKeyboardButton(text="🔙 Назад", callback_data="admin_panel")]
         ])
     )
+
+
 @dp.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery):
     await callback.answer()
     await cmd_start(callback.message)
+
 
 @dp.callback_query(F.data.in_(["transfer", "activities"]))
 async def handle_simple(callback: CallbackQuery):
@@ -412,6 +441,7 @@ async def handle_simple(callback: CallbackQuery):
     elif callback.data == "activities":
         await callback.message.answer("🎯 Экскурсии — уточняй у @pelikan_alakol_support")
     await callback.answer()
+
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
@@ -470,6 +500,7 @@ async def show_admin_orders(callback: CallbackQuery):
         
         await callback.message.answer(text, reply_markup=keyboard)
 
+
 @dp.callback_query(F.data.startswith("status:"))
 async def handle_status_button(callback: CallbackQuery):
     if not has_permission(callback.from_user.id, "change_status"):
@@ -510,6 +541,7 @@ async def handle_status_button(callback: CallbackQuery):
     
     await callback.answer(f"✅ Статус изменён на '{new_status}'")
 
+
 async def notify_client_status_update(order_id: str, status: str):
     async with aiosqlite.connect(DB_FILE) as db:
         cursor = await db.execute("SELECT telegram_user_id FROM orders WHERE order_id = ?", (order_id,))
@@ -537,7 +569,6 @@ async def notify_client_status_update(order_id: str, status: str):
 
 def generate_receipt_pdf(order_id: str, order_data: dict) -> str:
     pdf_dir = '/app/data/receipts'
-    import os
     os.makedirs(pdf_dir, exist_ok=True)
     
     pdf_path = f"{pdf_dir}/{order_id}.pdf"
@@ -595,8 +626,8 @@ def generate_receipt_pdf(order_id: str, order_data: dict) -> str:
     c.save()
     return pdf_path
 
+
 def generate_receipt_image(order_id: str, order_data: dict) -> str:
-    import os
     img_dir = '/app/data/receipts'
     os.makedirs(img_dir, exist_ok=True)
     
@@ -656,6 +687,7 @@ def generate_receipt_image(order_id: str, order_data: dict) -> str:
     img.save(img_path, 'PNG', quality=95)
     return img_path
 
+
 @dp.callback_query(F.data.startswith("pdf:"))
 async def handle_pdf_button(callback: CallbackQuery):
     if not has_permission(callback.from_user.id, "view_orders"):
@@ -674,7 +706,6 @@ async def handle_pdf_button(callback: CallbackQuery):
     
     pdf_path = row[0]
     
-    import os
     if not os.path.exists(pdf_path):
         await callback.answer("❌ Файл не найден на диске", show_alert=True)
         return
@@ -685,6 +716,7 @@ async def handle_pdf_button(callback: CallbackQuery):
     except Exception as e:
         logger.error(f"Ошибка отправки PDF: {e}")
         await callback.answer("❌ Ошибка отправки", show_alert=True)
+
 
 @dp.callback_query(F.data.startswith("photo:"))
 async def handle_photo_button(callback: CallbackQuery):
@@ -751,6 +783,7 @@ async def save_order(order_data: dict) -> dict:
         logger.error(f"Ошибка сохранения заказа: {e}")
         return {"status": "error", "message": str(e)}
 
+
 async def notify_admins_new_order(order_id: str, order_data: dict):
     items_text = "\n".join(f"• {item['name']} x{item.get('quantity', 1)} — {item['price']} ₸" for item in order_data.get("items", []))
     
@@ -780,6 +813,7 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
         except Exception as e:
             logger.error(f"Ошибка отправки админу {admin_id}: {e}")
 
+
 async def notify_client_order_received(order_id: str, order_data: dict):
     telegram_username = order_data.get("telegram_username")
     if not telegram_username:
@@ -795,6 +829,7 @@ async def notify_client_order_received(order_id: str, order_data: dict):
         await bot.send_message(f"@{telegram_username}", message)
     except Exception as e:
         logger.warning(f"Не удалось отправить клиенту @{telegram_username}: {e}")
+
 
 @dp.message(F.web_app_data)
 async def handle_webapp_order(message: Message):
@@ -819,6 +854,7 @@ async def handle_webapp_order(message: Message):
         logger.error(f"Ошибка обработки WebApp: {e}")
         await message.answer("❌ Ошибка при обработке заказа")
 
+
 # ==================== HTTP API ====================
 
 def cors_headers(origin: str | None) -> dict:
@@ -828,6 +864,7 @@ def cors_headers(origin: str | None) -> dict:
         "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
     }
+
 
 async def handle_new_order(request: web.Request) -> web.Response:
     origin = request.headers.get("Origin")
@@ -844,6 +881,7 @@ async def handle_new_order(request: web.Request) -> web.Response:
     except Exception as e:
         logger.error(f"Ошибка webhook: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500, headers=headers)
+
 
 async def get_reviews_endpoint(request: web.Request) -> web.Response:
     origin = request.headers.get("Origin")
@@ -892,6 +930,7 @@ async def get_reviews_endpoint(request: web.Request) -> web.Response:
         logger.error(f"Ошибка API /reviews: {e}")
         return web.json_response({'error': 'Internal server error'}, status=500, headers=headers)
 
+
 async def start_webhook_server():
     app = web.Application()
     app.router.add_route("POST", "/api/order", handle_new_order)
@@ -921,6 +960,7 @@ async def main():
     
     asyncio.create_task(start_webhook_server())
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
