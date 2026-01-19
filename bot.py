@@ -204,7 +204,202 @@ async def show_admin_panel(callback: CallbackQuery):
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()
+# ==================== КОМАНДЫ АДМИН-ПАНЕЛИ ====================
 
+@dp.message(Command("admin_panel"))
+async def cmd_admin_panel(message: Message):
+    """Команда /admin_panel"""
+    if not has_permission(message.from_user.id, "admin_panel"):
+        await message.answer("❌ У вас нет прав")
+        return
+    
+    text = "👨‍💼 <b>АДМИН-ПАНЕЛЬ</b>\n\nУправление заказами и статистика"
+    user_id = message.from_user.id
+    buttons = []
+    
+    if has_permission(user_id, "view_orders"):
+        buttons.append([InlineKeyboardButton(text="📋 Активные заказы", callback_data="admin_orders")])
+    
+    if has_permission(user_id, "stats"):
+        buttons.append([InlineKeyboardButton(text="📊 Статистика за день", callback_data="admin_stats")])
+    
+    if has_permission(user_id, "export"):
+        buttons.append([InlineKeyboardButton(text="📥 Экспорт заказов", callback_data="admin_export")])
+    
+    if has_permission(user_id, "cleanup"):
+        buttons.append([InlineKeyboardButton(text="🗑️ Очистка (>30 дней)", callback_data="admin_cleanup")])
+    
+    buttons.append([InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    await message.answer(text, reply_markup=keyboard)
+
+
+@dp.message(Command("stats"))
+async def cmd_stats(message: Message):
+    """Команда /stats - статистика за день"""
+    if not has_permission(message.from_user.id, "stats"):
+        await message.answer("❌ У вас нет прав")
+        return
+    
+    from datetime import date
+    today = date.today().isoformat()
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        # Количество заказов за день
+        cursor = await db.execute(
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", 
+            (today,)
+        )
+        count, total_sum = await cursor.fetchone()
+        
+        # По статусам
+        cursor = await db.execute(
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status",
+            (today,)
+        )
+        statuses = await cursor.fetchall()
+    
+    status_text = "\n".join([f"  • {status}: {cnt}" for status, cnt in statuses]) if statuses else "  Нет заказов"
+    
+    text = f"""📊 <b>Статистика за сегодня</b>
+
+📦 Всего заказов: {count or 0}
+💰 Сумма: {total_sum or 0}₸
+
+📋 По статусам:
+{status_text}
+"""
+    
+    await message.answer(text)
+
+
+@dp.callback_query(F.data == "admin_stats")
+async def show_stats(callback: CallbackQuery):
+    """Callback для кнопки статистики"""
+    if not has_permission(callback.from_user.id, "stats"):
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer()
+    
+    from datetime import date
+    today = date.today().isoformat()
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        cursor = await db.execute(
+            "SELECT COUNT(*), SUM(total) FROM orders WHERE DATE(created_at) = ?", 
+            (today,)
+        )
+        count, total_sum = await cursor.fetchone()
+        
+        cursor = await db.execute(
+            "SELECT status, COUNT(*) FROM orders WHERE DATE(created_at) = ? GROUP BY status",
+            (today,)
+        )
+        statuses = await cursor.fetchall()
+    
+    status_text = "\n".join([f"  • {status}: {cnt}" for status, cnt in statuses]) if statuses else "  Нет заказов"
+    
+    text = f"""📊 <b>Статистика за сегодня</b>
+
+📦 Всего заказов: {count or 0}
+💰 Сумма: {total_sum or 0}₸
+
+📋 По статусам:
+{status_text}
+"""
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад в админ-панель", callback_data="admin_panel")]
+    ])
+    
+    await callback.message.answer(text, reply_markup=keyboard)
+
+
+@dp.callback_query(F.data == "admin_export")
+async def export_orders(callback: CallbackQuery):
+    """Экспорт заказов в CSV"""
+    if not has_permission(callback.from_user.id, "export"):
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer("📥 Генерирую отчёт...")
+    
+    import csv
+    from io import StringIO
+    from datetime import date
+    
+    today = date.today().isoformat()
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            "SELECT * FROM orders WHERE DATE(created_at) = ? ORDER BY created_at DESC",
+            (today,)
+        )
+        orders = await cursor.fetchall()
+    
+    if not orders:
+        await callback.message.answer("📭 Нет заказов за сегодня")
+        return
+    
+    # Создаём CSV
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'Клиент', 'Комната', 'Сумма', 'Статус', 'Дата'])
+    
+    for order in orders:
+        writer.writerow([
+            order['order_id'],
+            order['client_name'],
+            order['room'],
+            order['total'],
+            order['status'],
+            order['created_at']
+        ])
+    
+    # Сохраняем файл
+    filename = f"orders_{today}.csv"
+    csv_path = f"/app/data/exports/{filename}"
+    
+    import os
+    os.makedirs("/app/data/exports", exist_ok=True)
+    
+    with open(csv_path, 'w', encoding='utf-8') as f:
+        f.write(output.getvalue())
+    
+    await bot.send_document(
+        callback.from_user.id,
+        document=FSInputFile(csv_path),
+        caption=f"📊 Отчёт за {today}\nВсего заказов: {len(orders)}"
+    )
+
+
+@dp.callback_query(F.data == "admin_cleanup")
+async def cleanup_old_orders(callback: CallbackQuery):
+    """Очистка старых заказов (>30 дней)"""
+    if not has_permission(callback.from_user.id, "cleanup"):
+        await callback.answer("❌ У вас нет прав", show_alert=True)
+        return
+    
+    await callback.answer()
+    
+    async with aiosqlite.connect(DB_FILE) as db:
+        # Удаляем заказы старше 30 дней
+        cursor = await db.execute(
+            "DELETE FROM orders WHERE created_at < datetime('now', '-30 days')"
+        )
+        await db.commit()
+        deleted = cursor.rowcount
+    
+    await callback.message.answer(
+        f"🗑️ Очистка завершена\n\n"
+        f"Удалено заказов: {deleted}",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="admin_panel")]
+        ])
+    )
 @dp.callback_query(F.data == "back_to_menu")
 async def back_to_menu(callback: CallbackQuery):
     await callback.answer()
