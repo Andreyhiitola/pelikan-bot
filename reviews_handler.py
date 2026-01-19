@@ -83,7 +83,7 @@ async def notify_managers_new_review(bot, review_id: int, user_id: int, username
 Используйте /admin_reviews для модерации
 """
     
-    for manager_id in MANAGER_IDS + ADMIN_IDS:
+    for manager_id in  ADMIN_IDS:
         try:
             await bot.send_message(chat_id=manager_id, text=text)
         except:
@@ -398,7 +398,7 @@ async def admin_reviews(message: Message):
     """Список отзывов на модерации"""
     user_id = message.from_user.id
     
-    if user_id not in MANAGER_IDS + ADMIN_IDS:
+    if user_id not in  ADMIN_IDS:
         await message.answer("❌ Недостаточно прав")
         return
     
