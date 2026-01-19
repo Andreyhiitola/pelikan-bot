@@ -76,3 +76,13 @@ __pycache__/
 *.backup
 *.broken
 sha256:*
+# КРИТИЧЕСКИ ВАЖНО - НЕ КОММИТИТЬ ДАННЫЕ КЛИЕНТОВ!
+data/
+backups/
+receipts/
+exports/
+
+# Секретные файлы
+.env
+.env.*
+!.env.example
