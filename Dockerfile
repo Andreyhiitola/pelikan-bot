@@ -1,5 +1,4 @@
 FROM python:3.11-slim
-
 LABEL maintainer="Pelikan Alakol <info@pelikan-alakol.kz>"
 LABEL description="Telegram bot for Pelikan Alakol Hotel"
 
@@ -9,13 +8,14 @@ WORKDIR /app
 ENV TZ=Asia/Almaty
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-# Устанавливаем шрифты для кириллицы в PDF
+# Устанавливаем шрифты для кириллицы в PDF и sqlite3
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     fonts-dejavu \
     fonts-dejavu-core \
     fonts-dejavu-extra \
-    tzdata && \
+    tzdata \
+    sqlite3 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -25,10 +25,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY bot.py .
 COPY reviews_handler.py .
+
 RUN mkdir -p /app/data
 
 ENV WEBHOOK_PORT=8080
-
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
