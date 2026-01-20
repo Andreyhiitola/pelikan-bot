@@ -149,8 +149,13 @@ async def cmd_start(message: Message):
                 text="🎯 Экскурсии",
                 callback_data="activities"),
             InlineKeyboardButton(
-                text="Задать вопрос",
-                url="https://t.me/pelikan_alakol_support"),
+                text="💬 WhatsApp",
+                url="https://wa.me/77767275841"),
+        ],
+        [
+            InlineKeyboardButton(
+                text="✈️ Telegram",
+                url="https://t.me/+77767275841"),
         ],
     ]
     
@@ -438,9 +443,39 @@ async def back_to_menu(callback: CallbackQuery):
 @dp.callback_query(F.data.in_(["transfer", "activities"]))
 async def handle_simple(callback: CallbackQuery):
     if callback.data == "transfer":
-        await callback.message.answer("🚗 Для заказа трансфера пиши @pelikan_alakol_support")
+        text = """🚗 <b>Трансфер</b>
+
+Для заказа трансфера свяжитесь с нами:
+
+💬 WhatsApp: https://wa.me/77767275841
+✈️ Telegram: https://t.me/+77767275841
+📞 Телефон: +7 (776) 727 58 41"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💬 WhatsApp", url="https://wa.me/77767275841"),
+                InlineKeyboardButton(text="✈️ Telegram", url="https://t.me/+77767275841")
+            ]
+        ])
+        await callback.message.answer(text, reply_markup=keyboard)
+        
     elif callback.data == "activities":
-        await callback.message.answer("🎯 Экскурсии — уточняй у @pelikan_alakol_support")
+        text = """🎯 <b>Экскурсии</b>
+
+Для уточнения программы экскурсий свяжитесь с нами:
+
+💬 WhatsApp: https://wa.me/77767275841
+✈️ Telegram: https://t.me/+77767275841
+📞 Телефон: +7 (776) 727 58 41"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💬 WhatsApp", url="https://wa.me/77767275841"),
+                InlineKeyboardButton(text="✈️ Telegram", url="https://t.me/+77767275841")
+            ]
+        ])
+        await callback.message.answer(text, reply_markup=keyboard)
+        
     await callback.answer()
 
 
@@ -450,7 +485,9 @@ async def cmd_help(message: Message):
         "📖 <b>Помощь</b>\n\n"
         "🍸 Бар — еда и напитки в номер\n"
         "🏠 Бронирование — онлайн на сайте\n"
-        "🚗 Трансфер / 🎯 Экскурсии — пиши @pelikan_alakol_support\n\n"
+        "🚗 Трансфер / 🎯 Экскурсии — свяжитесь с нами:\n"
+        "💬 WhatsApp: +7 (776) 727 58 41\n"
+        "✈️ Telegram: https://t.me/+77767275841\n\n"
         "Статусы:\n🟡 Принят\n🟠 Готовится\n🟢 Готов\n✅ Выдан"
     )
     await message.answer(text)
