@@ -456,7 +456,8 @@ async def handle_simple(callback: CallbackQuery):
             [
                 InlineKeyboardButton(text="💬 WhatsApp", url="https://wa.me/77767275841"),
                 InlineKeyboardButton(text="✈️ Telegram", url="https://t.me/+77767275841")
-            ]
+            ],
+            [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
         ])
         await callback.message.answer(text, reply_markup=keyboard)
         
@@ -475,7 +476,8 @@ async def handle_simple(callback: CallbackQuery):
                 InlineKeyboardButton(text="💬 WhatsApp", url="https://wa.me/77767275841"),
                 InlineKeyboardButton(text="✈️ Telegram", url="https://t.me/+77767275841")
             ],
-            [InlineKeyboardButton(text="🗺️ Как добраться", callback_data="navigation")]
+            [InlineKeyboardButton(text="🗺️ Как добраться", callback_data="navigation")],
+            [InlineKeyboardButton(text="🔙 Назад в меню", callback_data="back_to_menu")]
         ])
         await callback.message.answer(text, reply_markup=keyboard)
         
