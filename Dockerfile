@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY bot.py .
 COPY reviews_handler.py .
-
+COPY navigation_handler.py .
 RUN mkdir -p /app/data
 
 ENV WEBHOOK_PORT=8080
