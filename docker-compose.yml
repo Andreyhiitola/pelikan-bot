@@ -42,6 +42,7 @@ services:
       - WATCHTOWER_LABEL_ENABLE=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
       - TZ=Asia/Almaty
+      - DOCKER_API_VERSION=1.44  # ← Добавьте эту строку 
     command: --interval 300 --cleanup --label-enable
     logging:
       driver: "json-file"
