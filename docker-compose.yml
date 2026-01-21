@@ -31,7 +31,7 @@ services:
 
   # Watchtower - автообновление
   watchtower:
-    image: containrrr/watchtower:1.7.1
+    image: containrrr/watchtower:latest
     container_name: watchtower
     restart: unless-stopped
     volumes:
