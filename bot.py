@@ -1014,7 +1014,6 @@ async def main():
     dp.include_router(analytics_router)
     asyncio.create_task(start_webhook_server())
     scheduler = setup_scheduler(bot)  # Внутри main()!
-    scheduler.start()
     # Регистрируем команды бота
     commands = [
         BotCommand(command="start", description="🏠 Главное меню"),
