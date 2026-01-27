@@ -27,7 +27,8 @@ from aiogram.types import (
 
 from reviews_handler import reviews_router
 from navigation_handler import router as navigation_router
-
+from analytics_handler import setup_scheduler
+from analytics_commands import analytics_router
 # ==================== НАСТРОЙКИ ====================
 
 load_dotenv()
@@ -1010,9 +1011,13 @@ async def main():
     
     dp.include_router(reviews_router)
     dp.include_router(navigation_router)
+    dp.include_router(analytics_router)
     asyncio.create_task(start_webhook_server())
+    scheduler = setup_scheduler(bot)  # Внутри main()!
+    scheduler.start()
     await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
