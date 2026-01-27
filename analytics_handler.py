@@ -503,3 +503,10 @@ def setup_scheduler(bot: Bot):
     scheduler.start()
     logger.info("Analytics scheduler started")
     return scheduler
+
+
+async def send_email_report(analytics: Dict):
+    """Отправка отчета по email (заглушка)"""
+    # TODO: реализовать отправку email
+    logger.info("Email report prepared (not implemented)")
+    pass
