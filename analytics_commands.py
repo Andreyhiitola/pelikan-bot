@@ -66,7 +66,7 @@ async def analytics_handler(callback: CallbackQuery):
             await send_email_report(analytics)
             await callback.message.answer("✅ Отчет отправлен на regsk@mail.ru")
         except Exception as e:
-            await callback.message.answer(f"❌ Ошибка отправки: {e}")
+            await callback.message.answer("❌ Ошибка отправки отчета на email", parse_mode=None)
         
         return
     
@@ -96,7 +96,7 @@ async def analytics_handler(callback: CallbackQuery):
             )
             
         except Exception as e:
-            await callback.message.answer(f"❌ Ошибка генерации графиков: {e}")
+            await callback.message.answer("❌ Ошибка генерации графиков", parse_mode=None)
         
         return
     
@@ -138,7 +138,7 @@ async def analytics_handler(callback: CallbackQuery):
         )
         
     except Exception as e:
-        await callback.message.answer(f"❌ Ошибка генерации отчета: {e}")
+        await callback.message.answer("❌ Ошибка генерации отчета", parse_mode=None)
         import traceback
         traceback.print_exc()
 
@@ -169,6 +169,6 @@ async def test_report(message: Message):
         await message.answer("✅ Тестовый отчет отправлен!")
         
     except Exception as e:
-        await message.answer(f"❌ Ошибка: {e}")
+        await message.answer("❌ Произошла ошибка при генерации отчета", parse_mode=None)
         import traceback
         traceback.print_exc()
