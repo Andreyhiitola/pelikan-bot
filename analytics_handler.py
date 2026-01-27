@@ -390,7 +390,7 @@ if (cat.get('avg_value') or 10) < threshold:
 if problems:
     text += "⚠️ <b>Требуют внимания:</b>\n"
     for problem in problems:
-    text += f"  • {problem}\n"
+        text += f"  • {problem}\n"
     text += "\n"
     
     # Лучшие отзывы
