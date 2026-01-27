@@ -222,13 +222,17 @@ def generate_category_chart(category_averages: Dict) -> io.BytesIO:
         ax.text(0.5, 0.5, 'Нет данных', ha='center', va='center', fontsize=16)
         ax.axis('off')
     else:
+        # Безопасная функция для получения значений
+        def safe_value(val):
+            return val if val is not None else 0
+        
         categories = {
-            'Чистота': category_averages.get('avg_cleanliness', 0),
-            'Комфорт': category_averages.get('avg_comfort', 0),
-            'Расположение': category_averages.get('avg_location', 0),
-            'Удобства': category_averages.get('avg_facilities', 0),
-            'Персонал': category_averages.get('avg_staff', 0),
-            'Цена/качество': category_averages.get('avg_value', 0)
+            'Чистота': safe_value(category_averages.get('avg_cleanliness')),
+            'Комфорт': safe_value(category_averages.get('avg_comfort')),
+            'Расположение': safe_value(category_averages.get('avg_location')),
+            'Удобства': safe_value(category_averages.get('avg_facilities')),
+            'Персонал': safe_value(category_averages.get('avg_staff')),
+            'Цена/качество': safe_value(category_averages.get('avg_value'))
         }
         
         fig, ax = plt.subplots(figsize=(10, 6))
