@@ -1014,8 +1014,16 @@ async def main():
     asyncio.create_task(start_webhook_server())
     scheduler = setup_scheduler(bot)  # Внутри main()!
     scheduler.start()
+    # Регистрируем команды бота
+    commands = [
+        BotCommand(command="start", description="🏠 Главное меню"),
+        BotCommand(command="analytics", description="📊 Аналитика и отчеты"),
+        BotCommand(command="test_report", description="🧪 Тестовая отправка отчета"),
+        BotCommand(command="help", description="❓ Помощь")
+    ]
+    await bot.set_my_commands(commands)
+    logger.info(f"✅ Зарегистрировано {len(commands)} команд бота")
     await dp.start_polling(bot)
-
 
 if __name__ == "__main__":
     asyncio.run(main())
