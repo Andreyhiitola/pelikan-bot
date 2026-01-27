@@ -374,24 +374,24 @@ def generate_text_report(analytics: Dict) -> str:
         cat = analytics['category_averages']
         threshold = 7.0
         
-        # ПРАВИЛЬНЫЙ КОД:
-if (cat.get('avg_cleanliness') or 10) < threshold:
-    problems.append(f"🧹 Чистота ({cat.get('avg_cleanliness', 0):.1f})")
-if (cat.get('avg_comfort') or 10) < threshold:
-    problems.append(f"🛏️ Комфорт ({cat.get('avg_comfort', 0):.1f})")
-if (cat.get('avg_location') or 10) < threshold:
-    problems.append(f"📍 Расположение ({cat.get('avg_location', 0):.1f})")
-if (cat.get('avg_facilities') or 10) < threshold:
-    problems.append(f"🏊 Удобства ({cat.get('avg_facilities', 0):.1f})")
-if (cat.get('avg_staff') or 10) < threshold:
-    problems.append(f"👥 Персонал ({cat.get('avg_staff', 0):.1f})")
-if (cat.get('avg_value') or 10) < threshold:
-    problems.append(f"💰 Цена/качество ({cat.get('avg_value', 0):.1f})")
-if problems:
-    text += "⚠️ <b>Требуют внимания:</b>\n"
-    for problem in problems:
-        text += f"  • {problem}\n"
-    text += "\n"
+        if (cat.get('avg_cleanliness') or 10) < threshold:
+            problems.append(f"🧹 Чистота ({cat.get('avg_cleanliness', 0):.1f})")
+        if (cat.get('avg_comfort') or 10) < threshold:
+            problems.append(f"🛏️ Комфорт ({cat.get('avg_comfort', 0):.1f})")
+        if (cat.get('avg_location') or 10) < threshold:
+            problems.append(f"📍 Расположение ({cat.get('avg_location', 0):.1f})")
+        if (cat.get('avg_facilities') or 10) < threshold:
+            problems.append(f"🏊 Удобства ({cat.get('avg_facilities', 0):.1f})")
+        if (cat.get('avg_staff') or 10) < threshold:
+            problems.append(f"👥 Персонал ({cat.get('avg_staff', 0):.1f})")
+        if (cat.get('avg_value') or 10) < threshold:
+            problems.append(f"💰 Цена/качество ({cat.get('avg_value', 0):.1f})")
+        
+        if problems:
+            text += "⚠️ <b>Требуют внимания:</b>\n"
+            for problem in problems:
+                text += f"  • {problem}\n"
+            text += "\n"
     
     # Лучшие отзывы
     if analytics['best_reviews']:
