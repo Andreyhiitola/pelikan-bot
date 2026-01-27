@@ -7,7 +7,6 @@ import aiosqlite
 from aiohttp import web
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, F, types
-from reportlab.lib.pagesizes import letter, A4
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
