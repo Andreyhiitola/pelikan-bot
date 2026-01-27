@@ -31,7 +31,8 @@ COPY navigation_handler.py .
 # НОВОЕ: Копируем модули аналитики
 COPY analytics_handler.py .
 COPY analytics_commands.py .
-
+COPY analytics_handler.py .      ← ДОБАВЬТЕ
+COPY analytics_commands.py .     ← ДОБАВЬТЕ
 # Создаем директорию для данных
 RUN mkdir -p /app/data
 
