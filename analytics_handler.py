@@ -445,10 +445,28 @@ async def send_telegram_report(bot: Bot, analytics: Dict):
             
             # Отправляем графики
             # Отправляем графики
-            trend_chart.seek(0)
             await bot.send_photo(
                 chat_id=admin_id,
                 photo=BufferedInputFile(trend_chart.read(), filename="trend.png"),
                 caption="📈 Динамика средних оценок"
             )
             
+            
+            # Сброс позиции для повторного чтения
+            category_chart.seek(0)
+            await bot.send_photo(
+                chat_id=admin_id,
+                photo=BufferedInputFile(category_chart.read(), filename="category.png"),
+                caption="📊 Средние оценки по категориям"
+            )
+            
+            distribution_chart.seek(0)
+            await bot.send_photo(
+                chat_id=admin_id,
+                photo=BufferedInputFile(distribution_chart.read(), filename="distribution.png"),
+                caption="📉 Распределение оценок"
+            )
+            
+        except Exception as e:
+            logger.error(f"Ошибка отправки отчета админу {admin_id}: {e}")
+            continue
