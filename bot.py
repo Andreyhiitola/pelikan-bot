@@ -19,6 +19,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import Command, CommandObject
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
+    BotCommand,
     Message, CallbackQuery,
     InlineKeyboardMarkup, InlineKeyboardButton,
     WebAppInfo,

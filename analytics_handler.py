@@ -181,8 +181,7 @@ def generate_trend_chart(daily_stats: List[Dict]) -> io.BytesIO:
         ax.axis('off')
     else:
         dates = [datetime.strptime(row['date'], '%Y-%m-%d') for row in daily_stats]
-        ratings = [row['avg_rating'] for row in daily_stats]
-        
+        ratings = [row['avg_rating'] if row['avg_rating'] is not None else 0 for row in daily_stats]        
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.plot(dates, ratings, marker='o', linewidth=2, markersize=8, color='#2E86AB')
         
