@@ -451,6 +451,4 @@ async def send_telegram_report(bot: Bot, analytics: Dict):
                 photo=BufferedInputFile(trend_chart.read(), filename="trend.png"),
                 caption="📈 Динамика средних оценок"
             )
-            )
-            
             
