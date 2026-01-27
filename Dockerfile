@@ -27,12 +27,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY bot.py .
 COPY reviews_handler.py .
 COPY navigation_handler.py .
-
-# НОВОЕ: Копируем модули аналитики
 COPY analytics_handler.py .
 COPY analytics_commands.py .
-COPY analytics_handler.py .      ← ДОБАВЬТЕ
-COPY analytics_commands.py .     ← ДОБАВЬТЕ
+
 # Создаем директорию для данных
 RUN mkdir -p /app/data
 
