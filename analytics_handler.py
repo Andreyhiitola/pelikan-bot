@@ -16,7 +16,9 @@ matplotlib.use('Agg')  # Для работы без GUI
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from aiogram import Bot
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram.types import BufferedInputFile
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -470,3 +472,34 @@ async def send_telegram_report(bot: Bot, analytics: Dict):
         except Exception as e:
             logger.error(f"Ошибка отправки отчета админу {admin_id}: {e}")
             continue
+
+
+# ПЛАНИРОВЩИК
+# ==============================================================================
+
+async def scheduled_report(bot: Bot):
+    """Запланированная отправка отчета"""
+    try:
+        analytics = await generate_analytics()
+        await send_telegram_report(bot, analytics)
+        logger.info("Scheduled report sent successfully")
+    except Exception as e:
+        logger.error(f"Error sending scheduled report: {e}")
+
+
+def setup_scheduler(bot: Bot):
+    """Настройка планировщика для автоматической отправки отчетов"""
+    scheduler = AsyncIOScheduler(timezone='Asia/Almaty')
+    
+    # Отправка отчета каждый день в 9:00
+    scheduler.add_job(
+        scheduled_report,
+        trigger='cron',
+        hour=9,
+        minute=0,
+        args=[bot]
+    )
+    
+    scheduler.start()
+    logger.info("Analytics scheduler started")
+    return scheduler
