@@ -566,12 +566,23 @@ async def send_email_report(analytics: Dict):
         
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
-        # Прикрепляем графики
-        chart_files = [
-            analytics.get('trend_chart'),
-            analytics.get('categories_chart'),
-            analytics.get('distribution_chart')
-        ]
+        # Генерируем и сохраняем графики
+        import tempfile
+        chart_files = []
+        
+        # Генерируем графики
+        trend_io = generate_trend_chart(analytics.get('daily_stats', []))
+        cat_io = generate_category_chart(analytics.get('category_averages', {}))
+        dist_io = generate_distribution_chart(analytics.get('rating_distribution', []))
+        
+        # Сохраняем во временные файлы
+        for name, io_obj in [('trend.png', trend_io), ('categories.png', cat_io), ('distribution.png', dist_io)]:
+            tmp_path = f"/tmp/{name}"
+            with open(tmp_path, 'wb') as f:
+                io_obj.seek(0)
+                f.write(io_obj.read())
+            chart_files.append(tmp_path)
+            logger.info(f"📊 Сохранён график: {tmp_path}")
         
         attached_count = 0
         for chart_path in chart_files:
