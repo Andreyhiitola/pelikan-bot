@@ -68,6 +68,9 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher(storage=MemoryStorage())
 
+# Временное хранилище для отслеживания откуда пришел пользователь
+user_room_tracking = {}
+
 # ==================== БАЗА ДАННЫХ ====================
 
 async def init_db():
@@ -117,6 +120,20 @@ async def init_db():
         
         try:
             await db.execute("ALTER TABLE orders ADD COLUMN pdf_path TEXT")
+        
+        try:
+            await db.execute("ALTER TABLE orders ADD COLUMN scanned_room_number TEXT")
+            await db.commit()
+            logger.info("Миграция: добавлена колонка scanned_room_number в orders")
+        except:
+            pass
+        
+        try:
+            await db.execute("ALTER TABLE reviews ADD COLUMN scanned_room_number TEXT")
+            await db.commit()
+            logger.info("Миграция: добавлена колонка scanned_room_number в reviews")
+        except:
+            pass
             await db.commit()
             logger.info("Миграция: добавлена колонка pdf_path")
         except:
