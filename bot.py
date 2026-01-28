@@ -30,6 +30,7 @@ from reviews_handler import reviews_router
 from navigation_handler import router as navigation_router
 from analytics_handler import setup_scheduler
 from analytics_commands import analytics_router
+from qr_generator import qr_router
 # ==================== НАСТРОЙКИ ====================
 
 load_dotenv()
@@ -1013,6 +1014,7 @@ async def main():
     dp.include_router(reviews_router)
     dp.include_router(navigation_router)
     dp.include_router(analytics_router)
+    dp.include_router(qr_router)
     asyncio.create_task(start_webhook_server())
     scheduler = setup_scheduler(bot)  # Внутри main()!
     # Регистрируем команды бота
@@ -1020,6 +1022,7 @@ async def main():
         BotCommand(command="start", description="🏠 Главное меню"),
         BotCommand(command="analytics", description="📊 Аналитика и отчеты"),
         BotCommand(command="test_report", description="🧪 Тестовая отправка отчета"),
+        BotCommand(command="generate_qr", description="📱 Генерация QR-кодов"), 
         BotCommand(command="help", description="❓ Помощь")
     ]
     await bot.set_my_commands(commands)
