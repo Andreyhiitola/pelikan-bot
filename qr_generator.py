@@ -229,9 +229,9 @@ def generate_qr_pdf_all_rooms() -> BytesIO:
         text_y = y - 10 * mm
         
         if font_registered:
-            c.drawCentredString(text_x, text_y, f"Номер {room}")
+            c.drawCentredString(text_x, text_y, f"{room}")
         else:
-            c.drawCentredString(text_x, text_y, f"Room {room}")
+            c.drawCentredString(text_x, text_y, f"{room}")
         
         # Подзаголовок
         c.setFont(font_regular, 10)
