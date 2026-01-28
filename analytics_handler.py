@@ -548,8 +548,6 @@ async def send_email_report(analytics: Dict):
             body += f"{rating}: {count} отзывов\n"
         
         body += "\n\nФайлы с графиками прикреплены к письму.\n\n---\nАвтоматическое письмо от бота Pelican Alakol Hotel"
----
-Автоматическое письмо от бота Pelican Alakol Hotel"
         
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
