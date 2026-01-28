@@ -546,7 +546,6 @@ async def send_email_report(analytics: Dict):
 """
         for rating, count in analytics['rating_distribution'].items():
             body += f"{rating}: {count} отзывов\n"
-"
         
         body += "
 Файлы с графиками прикреплены к письму.
