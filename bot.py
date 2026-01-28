@@ -121,6 +121,10 @@ async def init_db():
         try:
             await db.execute("ALTER TABLE orders ADD COLUMN pdf_path TEXT")
         
+            await db.commit()
+            logger.info("Миграция: добавлена колонка pdf_path")
+        except:
+            pass
         try:
             await db.execute("ALTER TABLE orders ADD COLUMN scanned_room_number TEXT")
             await db.commit()
