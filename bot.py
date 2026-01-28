@@ -159,7 +159,7 @@ async def cmd_start(message: Message, command: CommandObject = None):
     
     # Формируем сообщение
     if scanned_room:
-        caption = f"🌊 <b>Пеликан Алаколь</b>
+        caption = f"🌊 <b>Пеликан Алаколь</b>\n\n📍 <b>Номер {scanned_room}</b>\n\nВыберите услугу ↓"
 
 📍 <b>Номер {scanned_room}</b>
 
