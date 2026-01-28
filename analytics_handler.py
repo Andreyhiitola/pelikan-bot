@@ -449,7 +449,7 @@ async def send_telegram_report(bot: Bot, analytics: Dict):
             )
             
             # Отправляем графики
-            # Отправляем графики
+            trend_chart.seek(0)
             await bot.send_photo(
                 chat_id=admin_id,
                 photo=BufferedInputFile(trend_chart.read(), filename="trend.png"),
@@ -457,7 +457,6 @@ async def send_telegram_report(bot: Bot, analytics: Dict):
             )
             
             
-            # Сброс позиции для повторного чтения
             category_chart.seek(0)
             await bot.send_photo(
                 chat_id=admin_id,
@@ -473,7 +472,7 @@ async def send_telegram_report(bot: Bot, analytics: Dict):
             )
             
         except Exception as e:
-            logger.error(f"Ошибка отправки отчета админу {admin_id}: {e}")
+            print(f"Ошибка отправки отчета админу {admin_id}: {e}")
             continue
 
 
@@ -487,7 +486,7 @@ async def scheduled_report(bot: Bot):
         await send_telegram_report(bot, analytics)
         logger.info("Scheduled report sent successfully")
     except Exception as e:
-        logger.error(f"Error sending scheduled report: {e}")
+        print(f"Error sending scheduled report: {e}")
 
 
 def setup_scheduler(bot: Bot):
