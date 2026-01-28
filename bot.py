@@ -879,8 +879,7 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
     telegram_contact = f"@{telegram_username}" if telegram_username else f"ID:{telegram_user_id}" if telegram_user_id else "не указан"
     
     scanned_room = order_data.get('scanned_room')
-    room_info = f"
-📱 <b>QR-код из номера: {scanned_room}</b>" if scanned_room else ""
+    room_info = f"\n📱 <b>QR-код из номера: {scanned_room}</b>" if scanned_room else ""
     
     admin_message = f"""<b>🆕 Новый заказ #{order_id}</b>
 
