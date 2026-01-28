@@ -138,10 +138,6 @@ async def init_db():
             logger.info("Миграция: добавлена колонка scanned_room_number в reviews")
         except:
             pass
-            await db.commit()
-            logger.info("Миграция: добавлена колонка pdf_path")
-        except:
-            pass
             
     logger.info("База данных готова")
 
