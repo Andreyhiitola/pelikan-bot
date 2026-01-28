@@ -514,7 +514,8 @@ async def send_email_report(analytics: Dict):
         smtp_server = os.getenv("SMTP_SERVER", "smtp.mail.ru")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
         from_email = os.getenv("SMTP_USER", "sttek@mail.ru")
-        to_email = os.getenv("REPORT_EMAIL", "sttek@mail.ru")
+        to_emails_str = os.getenv("REPORT_EMAIL", "sttek@mail.ru")
+        to_emails = [e.strip() for e in to_emails_str.split(",")]
         smtp_password = os.getenv("SMTP_PASSWORD", "")
         
         if not smtp_password:
@@ -524,30 +525,37 @@ async def send_email_report(analytics: Dict):
         # Создаём письмо
         msg = MIMEMultipart()
         msg['From'] = from_email
-        msg['To'] = to_email
-        msg['Subject'] = f"📊 Ежедневный отчёт Pelican Alakol - {analytics.get('period', 'Сегодня')}"
+        msg['To'] = ", ".join(to_emails)
+        msg['Subject'] = f"📊 Ежедневный отчёт Pelican Alakol - {datetime.now().strftime('%d.%m.%Y')}"
+        
+        # Получаем данные из analytics
+        daily_stats = analytics.get('daily_stats', [])
+        category_avg = analytics.get('category_averages', {})
+        rating_dist = analytics.get('rating_distribution', [])
+        
+        total_reviews = len(daily_stats)
+        avg_rating = sum([s.get('avg_rating', 0) for s in daily_stats]) / total_reviews if total_reviews > 0 else 0
         
         # Формируем текст письма
         body = f"""Ежедневный отчёт по отзывам
 
-Период: {analytics.get('period', datetime.now().strftime('%d.%m.%Y'))}
-Всего отзывов: {analytics['total_reviews']}
-Средняя оценка: {analytics['avg_rating']:.1f}/10
+Дата: {datetime.now().strftime('%d.%m.%Y')}
+Всего отзывов: {total_reviews}
+Средняя оценка: {avg_rating:.1f}/10
 
 Категории:
-🧹 Чистота: {analytics['categories']['cleanliness']:.1f}
-🛏️ Комфорт: {analytics['categories']['comfort']:.1f}
-📍 Расположение: {analytics['categories']['location']:.1f}
-🏊 Удобства: {analytics['categories']['facilities']:.1f}
-👥 Персонал: {analytics['categories']['staff']:.1f}
-💰 Цена/качество: {analytics['categories']['value_for_money']:.1f}
-
-Распределение оценок:
 """
-        for rating, count in analytics['rating_distribution'].items():
-            body += f"{rating}: {count} отзывов\n"
+        if category_avg:
+            for cat, val in category_avg.items():
+                emoji = {'cleanliness': '🧹', 'comfort': '🛏️', 'location': '📍', 
+                        'facilities': '🏊', 'staff': '👥', 'value_for_money': '💰'}.get(cat, '•')
+                body += f"{emoji} {cat}: {val:.1f}\n"
         
-        body += "\n\nФайлы с графиками прикреплены к письму.\n\n---\nАвтоматическое письмо от бота Pelican Alakol Hotel"
+        body += "\nРаспределение оценок:\n"
+        for item in rating_dist:
+            body += f"{item.get('rating_group', 'N/A')}: {item.get('count', 0)} отзывов\n"
+        
+        body += "\nФайлы с графиками прикреплены к письму.\n\n---\nАвтоматическое письмо от бота Pelican Alakol Hotel"
         
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
@@ -587,16 +595,13 @@ async def send_email_report(analytics: Dict):
         logger.info(f"🔐 Авторизация как {from_email}...")
         server.login(from_email, smtp_password)
         
-        logger.info(f"📤 Отправка письма на {to_email}...")
-        text = msg.as_string()
-        server.sendmail(from_email, to_email, text)
+        logger.info(f"📤 Отправка письма на {len(to_emails)} адресов...")
+        server.sendmail(from_email, to_emails, msg.as_string())
         server.quit()
         
-        logger.info(f"✅ Email отчёт отправлен успешно! Прикреплено файлов: {attached_count}")
+        logger.info(f"✅ Email отчёт отправлен успешно на: {', '.join(to_emails)}! Прикреплено файлов: {attached_count}")
         
     except Exception as e:
         logger.error(f"❌ Ошибка отправки email: {e}")
         import traceback
         traceback.print_exc()
-
-
