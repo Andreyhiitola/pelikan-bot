@@ -4,6 +4,7 @@
 
 import os
 from aiogram import Router, F
+from aiogram.types import BufferedInputFile
 from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from analytics_handler import (
@@ -81,17 +82,17 @@ async def analytics_handler(callback: CallbackQuery):
             distribution_chart = generate_distribution_chart(analytics['rating_distribution'])
             
             await callback.message.answer_photo(
-                photo=trend_chart,
+                photo=BufferedInputFile(trend_chart.getvalue(), filename="trend.png"),
                 caption="📈 Динамика средних оценок (30 дней)"
             )
             
             await callback.message.answer_photo(
-                photo=category_chart,
+                photo=BufferedInputFile(category_chart.getvalue(), filename="categories.png"),
                 caption="🎯 Средние оценки по категориям"
             )
             
             await callback.message.answer_photo(
-                photo=distribution_chart,
+                photo=BufferedInputFile(distribution_chart.getvalue(), filename="distribution.png"),
                 caption="📊 Распределение отзывов по оценкам"
             )
             
@@ -123,17 +124,17 @@ async def analytics_handler(callback: CallbackQuery):
         distribution_chart = generate_distribution_chart(analytics['rating_distribution'])
         
         await callback.message.answer_photo(
-            photo=trend_chart,
+            photo=BufferedInputFile(trend_chart.getvalue(), filename="trend.png"),
             caption=f"📈 Динамика средних оценок ({days} дней)"
         )
         
         await callback.message.answer_photo(
-            photo=category_chart,
+            photo=BufferedInputFile(category_chart.getvalue(), filename="categories.png"),
             caption="🎯 Средние оценки по категориям"
         )
         
         await callback.message.answer_photo(
-            photo=distribution_chart,
+            photo=BufferedInputFile(distribution_chart.getvalue(), filename="distribution.png"),
             caption="📊 Распределение отзывов по оценкам"
         )
         
