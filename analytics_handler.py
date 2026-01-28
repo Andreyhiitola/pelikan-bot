@@ -545,7 +545,7 @@ async def send_email_report(analytics: Dict):
 Распределение оценок:
 """
         for rating, count in analytics['rating_distribution'].items():
-            body += f"{rating}: {count} отзывов
+            body += f"{rating}: {count} отзывов\n"
 "
         
         body += "
