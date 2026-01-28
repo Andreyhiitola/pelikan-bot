@@ -19,6 +19,13 @@ DB_FILE = os.getenv('DB_FILE', 'orders.db')
 ADMIN_IDS = list(map(int, os.getenv("ADMIN_IDS", "").split(","))) if os.getenv("ADMIN_IDS") else []
 MANAGER_IDS = list(map(int, os.getenv("MANAGER_IDS", "").split(","))) if os.getenv("MANAGER_IDS") else []
 
+
+# Импортируем отслеживание номеров из bot.py
+try:
+    from bot import user_room_tracking
+except ImportError:
+    user_room_tracking = {}
+
 # Создаём роутер для отзывов
 reviews_router = Router()
 
@@ -73,11 +80,13 @@ async def notify_managers_new_review(bot, review_id: int, user_id: int, username
         data['facilities'] + data['staff'] + data['value']
     ) / 6
     
+    scanned_info = f"\n📱 QR из номера: <b>{data.get('scanned_room')}</b>" if data.get('scanned_room') else ""
+    
     text = f"""
 🆕 <b>Новый отзыв #{review_id}</b>
 
 👤 От: {data['guest_name']} (@{username or 'без username'})
-🚪 Номер: {data['room']}
+🚪 Номер: {data['room']}{scanned_info}
 ⭐ Средняя оценка: <b>{avg_score:.1f}/10</b>
 
 Используйте /admin_reviews для модерации
@@ -342,18 +351,21 @@ async def submit_review(callback: CallbackQuery, state: FSMContext):
     
     try:
         async with aiosqlite.connect(DB_FILE) as db:
+            # Получаем номер из QR-кода если есть
+            scanned_room = user_room_tracking.get(user.id)
+            
             cursor = await db.execute("""
                 INSERT INTO reviews (
                     telegram_user_id, telegram_username, guest_name, room_number,
                     cleanliness, comfort, location, facilities, staff, value_for_money,
-                    pros, cons, comment, display_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    pros, cons, comment, display_name, scanned_room_number
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 user.id, user.username, data['guest_name'], data['room'],
                 data['cleanliness'], data['comfort'], data['location'],
                 data['facilities'], data['staff'], data['value'],
                 data.get('pros'), data.get('cons'), data.get('comment'),
-                data['guest_name']
+                data['guest_name'], scanned_room
             ))
             
             review_id = cursor.lastrowid
