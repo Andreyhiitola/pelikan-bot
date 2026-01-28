@@ -144,8 +144,30 @@ async def init_db():
 # ==================== TELEGRAM ХЕНДЛЕРЫ ====================
 
 @dp.message(Command("start"))
-async def cmd_start(message: Message):
-    caption = "🌊 <b>Пеликан Алаколь</b>\n\nВыберите услугу ↓"
+async def cmd_start(message: Message, command: CommandObject = None):
+    user_id = message.from_user.id
+    
+    # Обрабатываем deep link с номером комнаты из QR-кода
+    scanned_room = None
+    if command and command.args:
+        args = command.args
+        if args.startswith("review_"):
+            scanned_room = args.replace("review_", "")
+            # Сохраняем в памяти откуда пришел пользователь
+            user_room_tracking[user_id] = scanned_room
+            logger.info(f"Пользователь {user_id} отсканировал QR из номера {scanned_room}")
+    
+    # Формируем сообщение
+    if scanned_room:
+        caption = f"🌊 <b>Пеликан Алаколь</b>
+
+📍 <b>Номер {scanned_room}</b>
+
+Выберите услугу ↓"
+    else:
+        caption = "🌊 <b>Пеликан Алаколь</b>
+
+Выберите услугу ↓"
 
     buttons = [
         [
@@ -206,7 +228,6 @@ async def cmd_start(message: Message):
     except Exception as e:
         logger.warning(f"Фото не загрузилось: {e}")
         await message.answer(caption, reply_markup=keyboard)
-
 
 # ==================== АДМИН-ПАНЕЛЬ ====================
 
@@ -814,14 +835,18 @@ async def handle_photo_button(callback: CallbackQuery):
 async def save_order(order_data: dict) -> dict:
     order_id = order_data.get("orderId") or str(int(datetime.now().timestamp()))
     
+    # Получаем отслеживаемый номер комнаты из QR-кода
+    user_id = order_data.get("telegram_user_id")
+    scanned_room = user_room_tracking.get(user_id) if user_id else None
+    
     try:
         async with aiosqlite.connect(DB_FILE) as db:
             pdf_path = generate_receipt_pdf(order_id, order_data)
             
             await db.execute("""
                 INSERT INTO orders 
-                (order_id, client_name, room, telegram_user_id, telegram_username, items, total, timestamp, pdf_path, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'принят')
+                (order_id, client_name, room, telegram_user_id, telegram_username, items, total, timestamp, pdf_path, status, scanned_room_number)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'принят', ?)
             """, (
                 order_id,
                 order_data.get("name"),
@@ -832,11 +857,13 @@ async def save_order(order_data: dict) -> dict:
                 order_data.get("total"),
                 order_data.get("timestamp"),
                 pdf_path,
+                scanned_room
             ))
             await db.commit()
         
-        logger.info(f"Заказ #{order_id} сохранён")
+        logger.info(f"Заказ #{order_id} сохранён (QR-номер: {scanned_room or 'не указан'})")
         order_data['pdf_path'] = pdf_path
+        order_data['scanned_room'] = scanned_room
         
         await notify_admins_new_order(order_id, order_data)
         await notify_client_order_received(order_id, order_data)
@@ -846,18 +873,22 @@ async def save_order(order_data: dict) -> dict:
         logger.error(f"Ошибка сохранения заказа: {e}")
         return {"status": "error", "message": str(e)}
 
-
 async def notify_admins_new_order(order_id: str, order_data: dict):
-    items_text = "\n".join(f"• {item['name']} x{item.get('quantity', 1)} — {item['price']} ₸" for item in order_data.get("items", []))
+    items_text = "
+".join(f"• {item['name']} x{item.get('quantity', 1)} — {item['price']} ₸" for item in order_data.get("items", []))
     
     telegram_username = order_data.get("telegram_username")
     telegram_user_id = order_data.get("telegram_user_id")
     telegram_contact = f"@{telegram_username}" if telegram_username else f"ID:{telegram_user_id}" if telegram_user_id else "не указан"
     
+    scanned_room = order_data.get('scanned_room')
+    room_info = f"
+📱 <b>QR-код из номера: {scanned_room}</b>" if scanned_room else ""
+    
     admin_message = f"""<b>🆕 Новый заказ #{order_id}</b>
 
 👤 Клиент: <b>{order_data.get('name')}</b>
-🏨 Комната: <b>{order_data.get('room')}</b>
+🏨 Комната: <b>{order_data.get('room')}</b>{room_info}
 📱 Telegram: {telegram_contact}
 
 🍽 <b>Заказ:</b>
@@ -875,7 +906,6 @@ async def notify_admins_new_order(order_id: str, order_data: dict):
                 await bot.send_document(admin_id, document=FSInputFile(pdf_path), caption=f"📄 Накладная {order_id}")
         except Exception as e:
             logger.error(f"Ошибка отправки админу {admin_id}: {e}")
-
 
 async def notify_client_order_received(order_id: str, order_data: dict):
     telegram_username = order_data.get("telegram_username")
