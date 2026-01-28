@@ -508,7 +508,100 @@ def setup_scheduler(bot: Bot):
 
 
 async def send_email_report(analytics: Dict):
-    """Отправка отчета по email (заглушка)"""
-    # TODO: реализовать отправку email
-    logger.info("Email report prepared (not implemented)")
-    pass
+    """Отправка отчета по email с вложениями через Mail.ru SMTP"""
+    try:
+        # Читаем настройки из .env
+        smtp_server = os.getenv("SMTP_SERVER", "smtp.mail.ru")
+        smtp_port = int(os.getenv("SMTP_PORT", "587"))
+        from_email = os.getenv("SMTP_USER", "sttek@mail.ru")
+        to_email = os.getenv("REPORT_EMAIL", "sttek@mail.ru")
+        smtp_password = os.getenv("SMTP_PASSWORD", "")
+        
+        if not smtp_password:
+            logger.error("❌ SMTP_PASSWORD не установлен в .env файле!")
+            return
+        
+        # Создаём письмо
+        msg = MIMEMultipart()
+        msg['From'] = from_email
+        msg['To'] = to_email
+        msg['Subject'] = f"📊 Ежедневный отчёт Pelican Alakol - {analytics['period']}"
+        
+        # Формируем текст письма
+        body = f"""Ежедневный отчёт по отзывам
+
+Период: {analytics['period']}
+Всего отзывов: {analytics['total_reviews']}
+Средняя оценка: {analytics['avg_rating']:.1f}/10
+
+Категории:
+🧹 Чистота: {analytics['categories']['cleanliness']:.1f}
+🛏️ Комфорт: {analytics['categories']['comfort']:.1f}
+📍 Расположение: {analytics['categories']['location']:.1f}
+🏊 Удобства: {analytics['categories']['facilities']:.1f}
+👥 Персонал: {analytics['categories']['staff']:.1f}
+💰 Цена/качество: {analytics['categories']['value_for_money']:.1f}
+
+Распределение оценок:
+"""
+        for rating, count in analytics['rating_distribution'].items():
+            body += f"{rating}: {count} отзывов
+"
+        
+        body += "
+Файлы с графиками прикреплены к письму.
+
+---
+Автоматическое письмо от бота Pelican Alakol Hotel"
+        
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # Прикрепляем графики
+        chart_files = [
+            analytics.get('trend_chart'),
+            analytics.get('categories_chart'),
+            analytics.get('distribution_chart')
+        ]
+        
+        attached_count = 0
+        for chart_path in chart_files:
+            if chart_path and os.path.exists(chart_path):
+                try:
+                    with open(chart_path, 'rb') as f:
+                        part = MIMEBase('application', 'octet-stream')
+                        part.set_payload(f.read())
+                        encoders.encode_base64(part)
+                        filename = os.path.basename(chart_path)
+                        part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+                        msg.attach(part)
+                        attached_count += 1
+                        logger.info(f"📎 Прикреплен файл: {filename}")
+                except Exception as e:
+                    logger.error(f"❌ Ошибка прикрепления {chart_path}: {e}")
+            else:
+                logger.warning(f"⚠️ Файл не найден: {chart_path}")
+        
+        if attached_count == 0:
+            logger.warning("⚠️ Ни один файл не был прикреплен!")
+        
+        # Отправка через Mail.ru SMTP
+        logger.info(f"📧 Подключение к {smtp_server}:{smtp_port}...")
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        
+        logger.info(f"🔐 Авторизация как {from_email}...")
+        server.login(from_email, smtp_password)
+        
+        logger.info(f"📤 Отправка письма на {to_email}...")
+        text = msg.as_string()
+        server.sendmail(from_email, to_email, text)
+        server.quit()
+        
+        logger.info(f"✅ Email отчёт отправлен успешно! Прикреплено файлов: {attached_count}")
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка отправки email: {e}")
+        import traceback
+        traceback.print_exc()
+
+
