@@ -31,8 +31,6 @@ COPY analytics_handler.py .
 COPY analytics_commands.py .
 COPY qr_generator.py .
 COPY logo.png .
-COPY logo.png .
-COPY logo.png .
 
 # Создаем директорию для данных
 RUN mkdir -p /app/data
