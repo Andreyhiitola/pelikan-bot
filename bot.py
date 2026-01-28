@@ -868,8 +868,7 @@ async def save_order(order_data: dict) -> dict:
         return {"status": "error", "message": str(e)}
 
 async def notify_admins_new_order(order_id: str, order_data: dict):
-    items_text = "
-".join(f"• {item['name']} x{item.get('quantity', 1)} — {item['price']} ₸" for item in order_data.get("items", []))
+    items_text = "\n".join(f"• {item['name']} x{item.get('quantity', 1)} — {item['price']} ₸" for item in order_data.get("items", []))
     
     telegram_username = order_data.get("telegram_username")
     telegram_user_id = order_data.get("telegram_user_id")
