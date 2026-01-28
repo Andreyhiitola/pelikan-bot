@@ -298,9 +298,9 @@ def generate_qr_pdf_all_rooms() -> BytesIO:
         c.setFont(font_regular, 10)
         c.setFillColorRGB(0.3, 0.3, 0.3)
         if font_registered:
-            c.drawCentredString(text_x, text_y - 5 * mm, "Сканируйте для отзыва")
+            c.drawCentredString(text_x, text_y - 5 * mm, "")
         else:
-            c.drawCentredString(text_x, text_y - 5 * mm, "Scan for review")
+            c.drawCentredString(text_x, text_y - 5 * mm, "")
         
         # Название отеля внизу
         c.setFont(font_name, 8)
