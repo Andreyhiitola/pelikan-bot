@@ -525,12 +525,12 @@ async def send_email_report(analytics: Dict):
         msg = MIMEMultipart()
         msg['From'] = from_email
         msg['To'] = to_email
-        msg['Subject'] = f"📊 Ежедневный отчёт Pelican Alakol - {analytics['period']}"
+        msg['Subject'] = f"📊 Ежедневный отчёт Pelican Alakol - {analytics.get('period', 'Сегодня')}"
         
         # Формируем текст письма
         body = f"""Ежедневный отчёт по отзывам
 
-Период: {analytics['period']}
+Период: {analytics.get('period', datetime.now().strftime('%d.%m.%Y'))}
 Всего отзывов: {analytics['total_reviews']}
 Средняя оценка: {analytics['avg_rating']:.1f}/10
 
