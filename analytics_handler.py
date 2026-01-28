@@ -546,10 +546,17 @@ async def send_email_report(analytics: Dict):
 Категории:
 """
         if category_avg:
+            cat_names = {
+                'avg_cleanliness': '🧹 Чистота',
+                'avg_comfort': '🛏️ Комфорт',
+                'avg_location': '📍 Расположение',
+                'avg_facilities': '🏊 Удобства',
+                'avg_staff': '👥 Персонал',
+                'avg_value': '💰 Цена/качество'
+            }
             for cat, val in category_avg.items():
-                emoji = {'cleanliness': '🧹', 'comfort': '🛏️', 'location': '📍', 
-                        'facilities': '🏊', 'staff': '👥', 'value_for_money': '💰'}.get(cat, '•')
-                body += f"{emoji} {cat}: {val:.1f}\n"
+                name = cat_names.get(cat, cat)
+                body += f"{name}: {val:.1f}\n"
         
         body += "\nРаспределение оценок:\n"
         for item in rating_dist:
