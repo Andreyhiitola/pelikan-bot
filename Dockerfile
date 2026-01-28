@@ -29,6 +29,7 @@ COPY reviews_handler.py .
 COPY navigation_handler.py .
 COPY analytics_handler.py .
 COPY analytics_commands.py .
+COPY qr_generator.py .
 
 # Создаем директорию для данных
 RUN mkdir -p /app/data
