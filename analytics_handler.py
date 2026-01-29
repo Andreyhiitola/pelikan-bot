@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+from email.mime.base import MIMEBase  # ✅ ИСПРАВЛЕНО: добавлен импорт
+from email import encoders  # ✅ ИСПРАВЛЕНО: добавлен импорт
 from typing import Dict, List, Tuple
 import matplotlib
 matplotlib.use('Agg')  # Для работы без GUI
@@ -21,9 +23,8 @@ import matplotlib.dates as mdates
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram.types import BufferedInputFile
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+import numpy as np
 
 # Настройки
 DB_FILE = os.getenv('DB_FILE', 'orders.db')
@@ -47,16 +48,6 @@ plt.rcParams['axes.unicode_minus'] = False
 async def get_reviews_analytics(days: int = 30) -> Dict:
     """
     Собирает аналитику по отзывам за последние N дней
-    
-    Returns:
-        Dict с аналитикой:
-        - daily_stats: статистика по дням
-        - category_averages: средние оценки по категориям
-        - rating_distribution: распределение по рейтингам
-        - trends: тренды изменений
-        - problem_areas: проблемные зоны
-        - best_reviews: лучшие отзывы
-        - worst_reviews: худшие отзывы
     """
     start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
     
@@ -82,7 +73,7 @@ async def get_reviews_analytics(days: int = 30) -> Dict:
         """, (start_date,))
         daily_stats = await cursor.fetchall()
         
-        # 2. Общие средние по категориям (за весь период)
+        # 2. Общие средние по категориям
         cursor = await db.execute("""
             SELECT 
                 ROUND(AVG(cleanliness), 2) as avg_cleanliness,
@@ -96,7 +87,7 @@ async def get_reviews_analytics(days: int = 30) -> Dict:
         """, (start_date,))
         category_averages = await cursor.fetchone()
         
-        # 3. Распределение по рейтингам (очень плохо - отлично)
+        # 3. Распределение по рейтингам
         cursor = await db.execute("""
             SELECT 
                 CASE 
@@ -178,7 +169,6 @@ async def get_reviews_analytics(days: int = 30) -> Dict:
 def generate_trend_chart(daily_stats: List[Dict]) -> io.BytesIO:
     """Генерирует график тренда средних оценок по дням"""
     if not daily_stats:
-        # Пустой график
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.text(0.5, 0.5, 'Нет данных за период', 
                 ha='center', va='center', fontsize=16)
@@ -188,6 +178,7 @@ def generate_trend_chart(daily_stats: List[Dict]) -> io.BytesIO:
     else:
         dates = [datetime.strptime(row['date'], '%Y-%m-%d') for row in daily_stats]
         ratings = [row['avg_rating'] if row['avg_rating'] is not None else 0 for row in daily_stats]        
+        
         fig, ax = plt.subplots(figsize=(12, 6))
         ax.plot(dates, ratings, marker='o', linewidth=2, markersize=8, color='#2E86AB')
         
@@ -203,7 +194,6 @@ def generate_trend_chart(daily_stats: List[Dict]) -> io.BytesIO:
         ax.grid(True, alpha=0.3)
         ax.set_ylim(0, 10)
         
-        # Форматирование дат на оси X
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%d.%m'))
         ax.xaxis.set_major_locator(mdates.DayLocator(interval=max(1, len(dates)//10)))
         plt.xticks(rotation=45)
@@ -213,7 +203,6 @@ def generate_trend_chart(daily_stats: List[Dict]) -> io.BytesIO:
     
     plt.tight_layout()
     
-    # Сохраняем в буфер
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
     buf.seek(0)
@@ -228,7 +217,6 @@ def generate_category_chart(category_averages: Dict) -> io.BytesIO:
         ax.text(0.5, 0.5, 'Нет данных', ha='center', va='center', fontsize=16)
         ax.axis('off')
     else:
-        # Безопасная функция для получения значений
         def safe_value(val):
             return val if val is not None else 0
         
@@ -244,7 +232,6 @@ def generate_category_chart(category_averages: Dict) -> io.BytesIO:
         fig, ax = plt.subplots(figsize=(10, 6))
         bars = ax.barh(list(categories.keys()), list(categories.values()), color='#2E86AB')
         
-        # Подписи значений на столбцах
         for i, (bar, value) in enumerate(zip(bars, categories.values())):
             ax.text(value + 0.1, i, f'{value:.1f}', va='center', fontsize=11)
         
@@ -269,7 +256,6 @@ def generate_distribution_chart(rating_distribution: List[Dict]) -> io.BytesIO:
         ax.text(0.5, 0.5, 'Нет данных', ha='center', va='center', fontsize=16)
         ax.axis('off')
     else:
-        # Упорядочиваем категории
         order = ['Очень плохо', 'Плохо', 'Удовлетворительно', 'Хорошо', 'Отлично']
         labels = []
         sizes = []
@@ -292,7 +278,6 @@ def generate_distribution_chart(rating_distribution: List[Dict]) -> io.BytesIO:
             textprops={'fontsize': 11}
         )
         
-        # Жирный текст для процентов
         for autotext in autotexts:
             autotext.set_color('white')
             autotext.set_fontweight('bold')
@@ -308,9 +293,6 @@ def generate_distribution_chart(rating_distribution: List[Dict]) -> io.BytesIO:
     
     return buf
 
-# Импортируем numpy для линии тренда
-import numpy as np
-
 # ==============================================================================
 # ГЕНЕРАЦИЯ ТЕКСТОВОГО ОТЧЕТА
 # ==============================================================================
@@ -318,18 +300,15 @@ import numpy as np
 def generate_text_report(analytics: Dict) -> str:
     """Генерирует текстовый отчет для Telegram"""
     
-    # Заголовок
     report_date = datetime.now().strftime('%d.%m.%Y')
     text = f"📊 <b>Ежедневный отчет по отзывам</b>\n"
     text += f"📅 Дата: {report_date}\n"
     text += f"📈 Период анализа: последние {analytics['days']} дней\n\n"
     
-    # Общая статистика
     total_reviews = len(analytics['daily_stats'])
     if analytics['current_period_avg']:
         text += f"⭐ <b>Средняя оценка:</b> {analytics['current_period_avg']:.1f}/10\n"
         
-        # Сравнение с предыдущим периодом
         if analytics['prev_period_avg']:
             diff = analytics['current_period_avg'] - analytics['prev_period_avg']
             if diff > 0:
@@ -348,14 +327,12 @@ def generate_text_report(analytics: Dict) -> str:
     else:
         text += "⚠️ <i>Нет отзывов за период</i>\n\n"
     
-    # Распределение по категориям
     if analytics['rating_distribution']:
         text += "📊 <b>Распределение отзывов:</b>\n"
         for item in analytics['rating_distribution']:
             text += f"  • {item['rating_category']}: {item['count']} отзывов\n"
         text += "\n"
     
-    # Средние оценки по категориям
     if analytics['category_averages']:
         text += "🎯 <b>Оценки по категориям:</b>\n"
         cat = analytics['category_averages']
@@ -374,7 +351,6 @@ def generate_text_report(analytics: Dict) -> str:
                 text += f"  {emoji} {name}: <b>{cat[key]:.1f}</b>/10\n"
         text += "\n"
     
-    # Проблемные зоны (оценка < 7)
     if analytics['category_averages']:
         problems = []
         cat = analytics['category_averages']
@@ -399,7 +375,6 @@ def generate_text_report(analytics: Dict) -> str:
                 text += f"  • {problem}\n"
             text += "\n"
     
-    # Лучшие отзывы
     if analytics['best_reviews']:
         text += "⭐ <b>Лучшие отзывы:</b>\n"
         for review in analytics['best_reviews']:
@@ -409,7 +384,6 @@ def generate_text_report(analytics: Dict) -> str:
                 text += f"    <i>\"{review['pros'][:100]}...\"</i>\n" if len(review['pros']) > 100 else f"    <i>\"{review['pros']}\"</i>\n"
         text += "\n"
     
-    # Худшие отзывы (для внутреннего анализа)
     if analytics['worst_reviews']:
         text += "⚠️ <b>Отзывы, требующие внимания:</b>\n"
         for review in analytics['worst_reviews']:
@@ -424,38 +398,33 @@ def generate_text_report(analytics: Dict) -> str:
     
     return text
 
+# ==============================================================================
 # ОТПРАВКА ОТЧЕТА В TELEGRAM
 # ==============================================================================
 
 async def send_telegram_report(bot: Bot, analytics: Dict):
     """Отправляет отчет в Telegram админам"""
     
-    # Генерируем текстовый отчет
     text_report = generate_text_report(analytics)
     
-    # Генерируем графики
     trend_chart = generate_trend_chart(analytics['daily_stats'])
     category_chart = generate_category_chart(analytics['category_averages'])
     distribution_chart = generate_distribution_chart(analytics['rating_distribution'])
     
-    # Отправляем каждому админу
     for admin_id in ADMIN_IDS:
         try:
-            # Отправляем текстовый отчет
             await bot.send_message(
                 chat_id=admin_id,
                 text=text_report,
                 parse_mode='HTML'
             )
             
-            # Отправляем графики
             trend_chart.seek(0)
             await bot.send_photo(
                 chat_id=admin_id,
                 photo=BufferedInputFile(trend_chart.read(), filename="trend.png"),
                 caption="📈 Динамика средних оценок"
             )
-            
             
             category_chart.seek(0)
             await bot.send_photo(
@@ -472,45 +441,16 @@ async def send_telegram_report(bot: Bot, analytics: Dict):
             )
             
         except Exception as e:
-            print(f"Ошибка отправки отчета админу {admin_id}: {e}")
+            logger.error(f"Ошибка отправки отчета админу {admin_id}: {e}")
             continue
 
-
-# ПЛАНИРОВЩИК
 # ==============================================================================
-
-async def scheduled_report(bot: Bot):
-    """Запланированная отправка отчета"""
-    try:
-        analytics = await generate_analytics()
-        await send_telegram_report(bot, analytics)
-        logger.info("Scheduled report sent successfully")
-    except Exception as e:
-        print(f"Error sending scheduled report: {e}")
-
-
-def setup_scheduler(bot: Bot):
-    """Настройка планировщика для автоматической отправки отчетов"""
-    scheduler = AsyncIOScheduler(timezone='Asia/Almaty')
-    
-    # Отправка отчета каждый день в 9:00
-    scheduler.add_job(
-        scheduled_report,
-        trigger='cron',
-        hour=9,
-        minute=0,
-        args=[bot]
-    )
-    
-    scheduler.start()
-    logger.info("Analytics scheduler started")
-    return scheduler
-
+# ОТПРАВКА EMAIL С ГРАФИКАМИ - ✅ ИСПРАВЛЕНО
+# ==============================================================================
 
 async def send_email_report(analytics: Dict):
     """Отправка отчета по email с вложениями через Mail.ru SMTP"""
     try:
-        # Читаем настройки из .env
         smtp_server = os.getenv("SMTP_SERVER", "smtp.mail.ru")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
         from_email = os.getenv("SMTP_USER", "sttek@mail.ru")
@@ -522,25 +462,23 @@ async def send_email_report(analytics: Dict):
             logger.error("❌ SMTP_PASSWORD не установлен в .env файле!")
             return
         
-        # Создаём письмо
         msg = MIMEMultipart()
         msg['From'] = from_email
         msg['To'] = ", ".join(to_emails)
         msg['Subject'] = f"📊 Ежедневный отчёт Pelican Alakol - {datetime.now().strftime('%d.%m.%Y')}"
         
-        # Получаем данные из analytics
+        # Формируем текст письма
         daily_stats = analytics.get('daily_stats', [])
         category_avg = analytics.get('category_averages', {})
         rating_dist = analytics.get('rating_distribution', [])
         
         total_reviews = len(daily_stats)
-        avg_rating = sum([s.get('avg_rating', 0) for s in daily_stats]) / total_reviews if total_reviews > 0 else 0
+        avg_rating = sum([s.get('avg_rating', 0) or 0 for s in daily_stats]) / total_reviews if total_reviews > 0 else 0
         
-        # Формируем текст письма
         body = f"""Ежедневный отчёт по отзывам
 
 Дата: {datetime.now().strftime('%d.%m.%Y')}
-Всего отзывов: {total_reviews}
+Всего дней с отзывами: {total_reviews}
 Средняя оценка: {avg_rating:.1f}/10
 
 Категории:
@@ -556,54 +494,47 @@ async def send_email_report(analytics: Dict):
             }
             for cat, val in category_avg.items():
                 name = cat_names.get(cat, cat)
-                body += f"{name}: {val:.1f}\n"
+                if val is not None:
+                    body += f"{name}: {val:.1f}\n"
         
         body += "\nРаспределение оценок:\n"
         for item in rating_dist:
-            body += f"{item.get('rating_group', 'N/A')}: {item.get('count', 0)} отзывов\n"
+            body += f"{item.get('rating_category', 'N/A')}: {item.get('count', 0)} отзывов\n"
         
         body += "\nФайлы с графиками прикреплены к письму.\n\n---\nАвтоматическое письмо от бота Pelican Alakol Hotel"
         
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
-        # Генерируем и сохраняем графики
-        import tempfile
-        chart_files = []
-        
-        # Генерируем графики
+        # ✅ ИСПРАВЛЕНО: Генерируем графики и прикрепляем напрямую из BytesIO
         trend_io = generate_trend_chart(analytics.get('daily_stats', []))
         cat_io = generate_category_chart(analytics.get('category_averages', {}))
         dist_io = generate_distribution_chart(analytics.get('rating_distribution', []))
         
-        # Сохраняем во временные файлы
-        for name, io_obj in [('trend.png', trend_io), ('categories.png', cat_io), ('distribution.png', dist_io)]:
-            tmp_path = f"/tmp/{name}"
-            with open(tmp_path, 'wb') as f:
-                io_obj.seek(0)
-                f.write(io_obj.read())
-            chart_files.append(tmp_path)
-            logger.info(f"📊 Сохранён график: {tmp_path}")
-        
         attached_count = 0
-        for chart_path in chart_files:
-            if chart_path and os.path.exists(chart_path):
-                try:
-                    with open(chart_path, 'rb') as f:
-                        part = MIMEBase('application', 'octet-stream')
-                        part.set_payload(f.read())
-                        encoders.encode_base64(part)
-                        filename = os.path.basename(chart_path)
-                        part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
-                        msg.attach(part)
-                        attached_count += 1
-                        logger.info(f"📎 Прикреплен файл: {filename}")
-                except Exception as e:
-                    logger.error(f"❌ Ошибка прикрепления {chart_path}: {e}")
-            else:
-                logger.warning(f"⚠️ Файл не найден: {chart_path}")
         
-        if attached_count == 0:
-            logger.warning("⚠️ Ни один файл не был прикреплен!")
+        # Прикрепляем график тренда
+        trend_io.seek(0)
+        part = MIMEImage(trend_io.read(), name='trend.png')
+        part.add_header('Content-Disposition', 'attachment', filename='trend.png')
+        msg.attach(part)
+        attached_count += 1
+        logger.info("📎 Прикреплен график: trend.png")
+        
+        # Прикрепляем график категорий
+        cat_io.seek(0)
+        part = MIMEImage(cat_io.read(), name='categories.png')
+        part.add_header('Content-Disposition', 'attachment', filename='categories.png')
+        msg.attach(part)
+        attached_count += 1
+        logger.info("📎 Прикреплен график: categories.png")
+        
+        # Прикрепляем график распределения
+        dist_io.seek(0)
+        part = MIMEImage(dist_io.read(), name='distribution.png')
+        part.add_header('Content-Disposition', 'attachment', filename='distribution.png')
+        msg.attach(part)
+        attached_count += 1
+        logger.info("📎 Прикреплен график: distribution.png")
         
         # Отправка через Mail.ru SMTP
         logger.info(f"📧 Подключение к {smtp_server}:{smtp_port}...")
@@ -623,3 +554,36 @@ async def send_email_report(analytics: Dict):
         logger.error(f"❌ Ошибка отправки email: {e}")
         import traceback
         traceback.print_exc()
+
+# ==============================================================================
+# ПЛАНИРОВЩИК
+# ==============================================================================
+
+async def scheduled_report(bot: Bot):
+    """Запланированная отправка отчета"""
+    try:
+        analytics = await get_reviews_analytics()
+        await send_telegram_report(bot, analytics)
+        await send_email_report(analytics)  # ✅ Добавлена отправка email
+        logger.info("✅ Scheduled report sent successfully")
+    except Exception as e:
+        logger.error(f"❌ Error sending scheduled report: {e}")
+        import traceback
+        traceback.print_exc()
+
+def setup_scheduler(bot: Bot):
+    """Настройка планировщика для автоматической отправки отчетов"""
+    scheduler = AsyncIOScheduler(timezone='Asia/Almaty')
+    
+    # Отправка отчета каждый день в 9:00
+    scheduler.add_job(
+        scheduled_report,
+        trigger='cron',
+        hour=9,
+        minute=0,
+        args=[bot]
+    )
+    
+    scheduler.start()
+    logger.info("✅ Analytics scheduler started - отчеты будут отправляться ежедневно в 9:00")
+    return scheduler
