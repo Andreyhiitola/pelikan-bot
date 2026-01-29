@@ -26,6 +26,10 @@ from aiogram.types import (
     WebAppInfo,
     FSInputFile)
 
+
+# === Глобальный tracking для QR кодов ===
+user_room_tracking = {}
+
 from reviews_handler import reviews_router
 from navigation_handler import router as navigation_router
 from analytics_handler import setup_scheduler
@@ -67,9 +71,6 @@ logger = logging.getLogger(__name__)
 
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher(storage=MemoryStorage())
-
-# Временное хранилище для отслеживания откуда пришел пользователь
-user_room_tracking = {}
 
 # ==================== БАЗА ДАННЫХ ====================
 
