@@ -144,15 +144,7 @@ async def process_name(message: Message, state: FSMContext):
     data = await state.get_data()
     scanned_room = data.get("scanned_room") or user_room_tracking.get(user_id)
     
-    # 🔍 DEBUG
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"🔍 DEBUG process_name: user_id={user_id}, scanned_room={scanned_room}, tracking_dict={user_room_tracking}")
     
-    # 🔍 DEBUG
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"🔍 DEBUG process_name: user_id={user_id}, scanned_room={scanned_room}, tracking_dict={user_room_tracking}")
     
     if scanned_room:
         # Если есть scanned_room - автоматически используем его и пропускаем вопрос
