@@ -145,7 +145,7 @@ async def init_db():
 # ==================== TELEGRAM ХЕНДЛЕРЫ ====================
 
 @dp.message(Command("start"))
-async def cmd_start(message: Message, command: CommandObject = None):
+async def cmd_start(message: Message, command: CommandObject = None, state: FSMContext = None):
     user_id = message.from_user.id
     
     # Обрабатываем deep link с номером комнаты из QR-кода
@@ -156,6 +156,9 @@ async def cmd_start(message: Message, command: CommandObject = None):
             scanned_room = args.replace("review_", "")
             # Сохраняем в памяти откуда пришел пользователь
             user_room_tracking[user_id] = scanned_room
+            # Сохраняем в FSM state для персистентности
+            if state:
+                await state.update_data(scanned_room=scanned_room)
             logger.info(f"Пользователь {user_id} отсканировал QR из номера {scanned_room}")
     
     # Формируем сообщение

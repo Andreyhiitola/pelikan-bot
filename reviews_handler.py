@@ -140,7 +140,14 @@ async def process_name(message: Message, state: FSMContext):
     await state.update_data(guest_name=message.text)
     
     # ✅ НОВАЯ ЛОГИКА: Проверяем есть ли scanned_room из QR-кода
-    scanned_room = user_room_tracking.get(user_id)
+    # Сначала проверяем FSM state (более надёжно)
+    data = await state.get_data()
+    scanned_room = data.get("scanned_room") or user_room_tracking.get(user_id)
+    
+    # 🔍 DEBUG
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"🔍 DEBUG process_name: user_id={user_id}, scanned_room={scanned_room}, tracking_dict={user_room_tracking}")
     
     # 🔍 DEBUG
     import logging
