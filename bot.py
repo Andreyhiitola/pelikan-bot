@@ -65,7 +65,7 @@ def has_permission(user_id: int, permission: str) -> bool:
 
 DB_FILE = os.getenv("DB_FILE", "orders.db")
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", "8080"))
-ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "https://pelikan-alakol-site-v2.pages.dev")
+ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "https://parkpelikan-alakol.kz")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -172,15 +172,15 @@ async def cmd_start(message: Message, command: CommandObject = None, state: FSMC
         [
             InlineKeyboardButton(
                 text="🍸 Бар (еда на заказ)",
-                web_app=WebAppInfo(url="https://pelikan-alakol-site-v2.pages.dev/bar.html")),
+                web_app=WebAppInfo(url="https://parkpelikan-alakol.kz/bar.html")),
             InlineKeyboardButton(
                 text="🍴 Столовая",
-                web_app=WebAppInfo(url="https://pelikan-alakol-site-v2.pages.dev/index_menu.html")),
+                web_app=WebAppInfo(url="https://parkpelikan-alakol.kz/index_menu.html")),
         ],
         [
             InlineKeyboardButton(
                 text="🏠 Бронирование номера",
-                url="https://pelikan-alakol-site-v2.pages.dev/maxibooking.html"),
+                url="https://parkpelikan-alakol.kz/maxibooking.html"),
             InlineKeyboardButton(
                 text="🚗 Трансфер",
                 callback_data="transfer"),
@@ -220,7 +220,7 @@ async def cmd_start(message: Message, command: CommandObject = None, state: FSMC
         ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    photo_url = "https://pelikan-alakol-site-v2.pages.dev/img/welcome-beach.jpg"
+    photo_url = "https://parkpelikan-alakol.kz/img/welcome-beach.jpg"
 
     try:
         await message.answer_photo(photo=photo_url, caption=caption, reply_markup=keyboard)
@@ -658,11 +658,27 @@ def generate_receipt_pdf(order_id: str, order_data: dict) -> str:
     c = canvas.Canvas(pdf_path, pagesize=A4)
     width, height = A4
     
-    try:
-        pdfmetrics.registerFont(TTFont('DejaVu', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
-        font_name = 'DejaVu'
-    except:
-        font_name = 'Helvetica'
+    # Пробуем загрузить шрифт с поддержкой кириллицы
+    font_name = 'Helvetica'
+    font_paths = [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+        '/System/Library/Fonts/Helvetica.ttc',
+    ]
+    
+    for font_path in font_paths:
+        if os.path.exists(font_path):
+            try:
+                pdfmetrics.registerFont(TTFont('DejaVu', font_path))
+                font_name = 'DejaVu'
+                logger.info(f"Используется шрифт: {font_path}")
+                break
+            except Exception as e:
+                logger.warning(f"Не удалось загрузить шрифт {font_path}: {e}")
+                continue
+    
+    if font_name == 'Helvetica':
+        logger.warning("⚠️ Используется Helvetica - кириллица может отображаться некорректно!")
     
     c.setFont(font_name, 16)
     c.drawCentredString(width/2, height - 50*mm, "ПЕЛИКАН АЛАКОЛЬ")
@@ -835,8 +851,11 @@ async def save_order(order_data: dict) -> dict:
     order_id = order_data.get("orderId") or str(int(datetime.now().timestamp()))
     
     # Получаем отслеживаемый номер комнаты из QR-кода
-    user_id = order_data.get("telegram_user_id")
-    scanned_room = user_room_tracking.get(user_id) if user_id else None
+    # Сначала проверяем order_data (для WebApp заказов), затем user_room_tracking
+    scanned_room = order_data.get("scanned_room")
+    if not scanned_room:
+        user_id = order_data.get("telegram_user_id")
+        scanned_room = user_room_tracking.get(user_id) if user_id else None
     
     try:
         async with aiosqlite.connect(DB_FILE) as db:
@@ -928,6 +947,12 @@ async def handle_webapp_order(message: Message):
         order_data["telegram_user_id"] = message.from_user.id
         order_data["telegram_username"] = message.from_user.username
         order_data["timestamp"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Добавляем scanned_room из tracking, если есть
+        user_id = message.from_user.id
+        if user_id in user_room_tracking:
+            order_data["scanned_room"] = user_room_tracking[user_id]
+            logger.info(f"WebApp заказ от пользователя {user_id} включает scanned_room: {user_room_tracking[user_id]}")
         
         result = await save_order(order_data)
         
@@ -1075,4 +1100,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
